@@ -35,7 +35,9 @@ function downloadICS(meeting: BoardMeeting, entityName: string) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = `${entityName.replace(/\s+/g, '-')}-${meeting.meetingDate}.ics`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(a.href);
 }
 
