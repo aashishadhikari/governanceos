@@ -1,10 +1,15 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileText, Upload, X, CheckSquare, Square, Plus, Loader2, Download, Sparkles, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ArrowLeft, FileText, Upload, X, CheckSquare, Square, Plus, Loader2,
+  Download, Sparkles, AlertCircle, ChevronDown, ChevronUp, Save, CheckCircle,
+  Trash2,
+} from 'lucide-react';
 import type { Entity, Director } from '@/lib/db/schema';
 import type { JurisdictionTemplate } from '@/lib/tor/jurisdictions';
+import type { TorSettings, StoredFile } from '@/app/api/entities/[id]/tor/settings/route';
 
 interface Props {
   entity: Entity;
@@ -80,16 +85,57 @@ function FileDropZone({
   );
 }
 
+/** Renders a stored file badge (previously saved to DB) */
+function StoredFileBadge({
+  file,
+  onDownload,
+  onClear,
+}: {
+  file: StoredFile;
+  onDownload: () => void;
+  onClear: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-4 py-3">
+      <div className="flex items-center gap-3">
+        <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-green-800">{file.name}</p>
+          <p className="text-xs text-green-600">
+            {formatFileSize(file.size)} · Saved {new Date(file.uploadedAt).toLocaleDateString()}
+            {file.largeFile && ' · File too large to store inline — re-upload to use with AI'}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        {file.contentBase64 && (
+          <button
+            onClick={onDownload}
+            title="Download stored file"
+            className="p-1.5 hover:bg-green-100 rounded-full"
+          >
+            <Download className="w-3.5 h-3.5 text-green-700" />
+          </button>
+        )}
+        <button
+          onClick={onClear}
+          title="Remove stored file"
+          className="p-1.5 hover:bg-red-50 rounded-full"
+        >
+          <Trash2 className="w-3.5 h-3.5 text-red-400" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function TorClient({ entity, directors, template }: Props) {
-  // Form state
+  // Form state — initialised from template defaults, then overwritten by saved settings
   const [quorum, setQuorum] = useState(template.quorumDefault);
   const [meetingFrequency, setMeetingFrequency] = useState('Quarterly');
   const [noticePeriodDays, setNoticePeriodDays] = useState(template.noticePeriodDays);
   const [chairCastingVote, setChairCastingVote] = useState(true);
-  const [effectiveDate, setEffectiveDate] = useState(() => {
-    const d = new Date();
-    return d.toISOString().slice(0, 10);
-  });
+  const [effectiveDate, setEffectiveDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [purpose, setPurpose] = useState((entity as Entity & { purpose?: string }).purpose ?? '');
 
   // Reserved matters
@@ -99,15 +145,170 @@ export default function TorClient({ entity, directors, template }: Props) {
   const [customMatter, setCustomMatter] = useState('');
   const [extraMatters, setExtraMatters] = useState<string[]>([]);
 
-  // Stage 2 files
+  // Stage 2 files — new uploads (not yet saved)
   const [constitutionFile, setConstitutionFile] = useState<UploadedFile | null>(null);
   const [shaFile, setShaFile] = useState<UploadedFile | null>(null);
+  // Stored files — already persisted to DB
+  const [storedConstitution, setStoredConstitution] = useState<StoredFile | null>(null);
+  const [storedSha, setStoredSha] = useState<StoredFile | null>(null);
+
   const [showStage2, setShowStage2] = useState(false);
+
+  // AI availability
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null); // null = loading
+
+  // Settings persistence
+  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // Generation state
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [aiStatus, setAiStatus] = useState('');
+
+  // ── Load saved settings on mount ────────────────────────────────────────────
+  useEffect(() => {
+    async function load() {
+      try {
+        const res = await fetch(`/api/entities/${entity.id}/tor/settings`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        setAiEnabled(data.aiEnabled ?? false);
+
+        if (data.settings) {
+          const s: TorSettings = data.settings;
+          if (s.quorum != null) setQuorum(s.quorum);
+          if (s.meetingFrequency) setMeetingFrequency(s.meetingFrequency);
+          if (s.noticePeriodDays != null) setNoticePeriodDays(s.noticePeriodDays);
+          if (s.chairCastingVote != null) setChairCastingVote(s.chairCastingVote);
+          if (s.effectiveDate) setEffectiveDate(s.effectiveDate);
+          if (s.purpose) setPurpose(s.purpose);
+          if (s.selectedMatters) setSelectedMatters(new Set(s.selectedMatters));
+          if (s.customMatters?.length) {
+            setExtraMatters(s.customMatters);
+            setSelectedMatters(prev => new Set([...prev, ...(s.customMatters ?? [])]));
+          }
+          if (s.constitutionFile) setStoredConstitution(s.constitutionFile);
+          if (s.shaFile) setStoredSha(s.shaFile);
+          if (s.lastSavedAt) setLastSavedAt(s.lastSavedAt);
+        }
+      } finally {
+        setLoadingSettings(false);
+      }
+    }
+    load();
+  }, [entity.id]);
+
+  // ── Save settings ────────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    try {
+      // If new files are attached, save them too via multipart
+      const hasNewFiles = !!(constitutionFile || shaFile);
+
+      const settings: TorSettings = {
+        quorum,
+        meetingFrequency,
+        noticePeriodDays,
+        chairCastingVote,
+        effectiveDate,
+        purpose,
+        selectedMatters: [...selectedMatters],
+        customMatters: extraMatters,
+        // Preserve existing stored files unless explicitly cleared
+        constitutionFile: storedConstitution,
+        shaFile: storedSha,
+      };
+
+      let res: Response;
+
+      if (hasNewFiles) {
+        const fd = new FormData();
+        fd.append('settings', JSON.stringify(settings));
+        if (constitutionFile) fd.append('constitution', constitutionFile.file);
+        if (shaFile) fd.append('sha', shaFile.file);
+        res = await fetch(`/api/entities/${entity.id}/tor/settings`, {
+          method: 'PUT',
+          body: fd,
+        });
+      } else {
+        res = await fetch(`/api/entities/${entity.id}/tor/settings`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(settings),
+        });
+      }
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? 'Failed to save settings');
+      }
+
+      const data = await res.json();
+      setLastSavedAt(data.settings?.lastSavedAt ?? new Date().toISOString());
+
+      // Update stored file state from what was actually saved
+      if (data.settings?.constitutionFile) {
+        setStoredConstitution(data.settings.constitutionFile);
+        setConstitutionFile(null); // clear new-upload state — now stored
+      }
+      if (data.settings?.shaFile) {
+        setStoredSha(data.settings.shaFile);
+        setShaFile(null);
+      }
+
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to save settings');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ── Download stored file ─────────────────────────────────────────────────────
+  const downloadStoredFile = (file: StoredFile) => {
+    if (!file.contentBase64) return;
+    const bytes = Uint8Array.from(atob(file.contentBase64), c => c.charCodeAt(0));
+    const blob = new Blob([bytes], { type: file.mimeType });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ── Clear stored file (save null) ────────────────────────────────────────────
+  const clearStoredFile = async (field: 'constitutionFile' | 'shaFile') => {
+    try {
+      const settings: TorSettings = {
+        quorum, meetingFrequency, noticePeriodDays, chairCastingVote,
+        effectiveDate, purpose,
+        selectedMatters: [...selectedMatters],
+        customMatters: extraMatters,
+        constitutionFile: field === 'constitutionFile' ? null : storedConstitution,
+        shaFile: field === 'shaFile' ? null : storedSha,
+      };
+      await fetch(`/api/entities/${entity.id}/tor/settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      if (field === 'constitutionFile') setStoredConstitution(null);
+      else setStoredSha(null);
+    } catch {
+      // non-critical — just clear state
+      if (field === 'constitutionFile') setStoredConstitution(null);
+      else setStoredSha(null);
+    }
+  };
 
   const toggleMatter = (m: string) => {
     setSelectedMatters(prev => {
@@ -127,10 +328,18 @@ export default function TorClient({ entity, directors, template }: Props) {
 
   const allMatters = [...template.reservedMattersDefaults, ...extraMatters];
 
+  // For generation: use stored file content if no new file is uploaded
+  const effectiveConstitutionForAI = constitutionFile ?? (
+    storedConstitution?.contentBase64 ? storedConstitution : null
+  );
+  const effectiveShaForAI = shaFile ?? (
+    storedSha?.contentBase64 ? storedSha : null
+  );
+  const hasFilesForGeneration = !!(effectiveConstitutionForAI || effectiveShaForAI);
+
   const handleGenerate = async () => {
     setGenerating(true);
     setError('');
-    const hasFiles = !!(constitutionFile || shaFile);
 
     try {
       const formData = new FormData();
@@ -147,11 +356,26 @@ export default function TorClient({ entity, directors, template }: Props) {
       };
       formData.append('data', JSON.stringify(torData));
 
-      if (constitutionFile) formData.append('constitution', constitutionFile.file);
-      if (shaFile) formData.append('sha', shaFile.file);
+      // Attach files: prefer newly uploaded, fall back to stored file content
+      if (constitutionFile) {
+        formData.append('constitution', constitutionFile.file);
+      } else if (storedConstitution?.contentBase64) {
+        // Reconstruct File from stored base64
+        const bytes = Uint8Array.from(atob(storedConstitution.contentBase64), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: storedConstitution.mimeType });
+        formData.append('constitution', new File([blob], storedConstitution.name, { type: storedConstitution.mimeType }));
+      }
 
-      if (hasFiles) {
-        setAiStatus('Extracting text from uploaded documents…');
+      if (shaFile) {
+        formData.append('sha', shaFile.file);
+      } else if (storedSha?.contentBase64) {
+        const bytes = Uint8Array.from(atob(storedSha.contentBase64), c => c.charCodeAt(0));
+        const blob = new Blob([bytes], { type: storedSha.mimeType });
+        formData.append('sha', new File([blob], storedSha.name, { type: storedSha.mimeType }));
+      }
+
+      if (hasFilesForGeneration) {
+        setAiStatus('Extracting text from documents…');
         setTimeout(() => setAiStatus('Analyzing with AI — identifying clauses and conflicts…'), 2000);
         setTimeout(() => setAiStatus('Merging AI findings into template…'), 5000);
       } else {
@@ -186,7 +410,15 @@ export default function TorClient({ entity, directors, template }: Props) {
     }
   };
 
-  const hasFiles = !!(constitutionFile || shaFile);
+  const hasNewFiles = !!(constitutionFile || shaFile);
+
+  if (loadingSettings) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-indigo-500 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -209,9 +441,29 @@ export default function TorClient({ entity, directors, template }: Props) {
               {entity.name} · {entity.country} · {template.act} {template.actYear}
             </p>
           </div>
-          <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
-            Regulated by {template.regulator.split('(')[0].trim()}
-          </span>
+          <div className="flex items-center gap-3">
+            {lastSavedAt && (
+              <span className="text-xs text-gray-400">
+                Last saved {new Date(lastSavedAt).toLocaleString()}
+              </span>
+            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-60 transition-colors"
+            >
+              {saving ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+              ) : saveSuccess ? (
+                <><CheckCircle className="w-4 h-4" /> Saved!</>
+              ) : (
+                <><Save className="w-4 h-4" /> Save Settings</>
+              )}
+            </button>
+            <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full font-medium">
+              Regulated by {template.regulator.split('(')[0].trim()}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -225,7 +477,7 @@ export default function TorClient({ entity, directors, template }: Props) {
             <p className="text-sm text-blue-700 mt-0.5">
               Pre-filled with {template.act} ({template.actYear}) requirements — quorum: {template.quorumDefault} directors,
               notice: {template.noticePeriodDays} days, minutes retention: {template.minutesRetentionYears} years.
-              Adjust as needed for your constitution.
+              Adjust as needed and click <strong>Save Settings</strong> to persist your choices.
             </p>
           </div>
         </div>
@@ -389,9 +641,12 @@ export default function TorClient({ entity, directors, template }: Props) {
                   <div className="text-left">
                     <p className="text-sm font-semibold text-gray-900">
                       Stage 2 — AI Document Analysis
-                      {hasFiles && (
+                      {(hasNewFiles || storedConstitution || storedSha) && (
                         <span className="ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
-                          {(constitutionFile ? 1 : 0) + (shaFile ? 1 : 0)} file{(constitutionFile && shaFile) ? 's' : ''} ready
+                          {[
+                            (constitutionFile || storedConstitution) ? 'Constitution' : null,
+                            (shaFile || storedSha) ? 'SHA' : null,
+                          ].filter(Boolean).join(' + ')} ready
                         </span>
                       )}
                     </p>
@@ -405,6 +660,22 @@ export default function TorClient({ entity, directors, template }: Props) {
 
               {showStage2 && (
                 <div className="px-6 pb-6 space-y-4 border-t border-gray-50">
+
+                  {/* AI not configured warning */}
+                  {aiEnabled === false && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mt-4 flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">AI analysis not configured</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          The <code className="bg-amber-100 px-1 rounded">ANTHROPIC_API_KEY</code> environment variable is not set.
+                          You can still upload and store Constitution/SHA files for reference, but AI clause extraction won't work until the API key is configured.
+                          Contact your system administrator to enable Stage 2.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="bg-violet-50 rounded-lg px-4 py-3 mt-4">
                     <p className="text-xs text-violet-700 font-medium">What AI extracts</p>
                     <ul className="text-xs text-violet-600 mt-1 space-y-0.5 list-disc list-inside">
@@ -414,27 +685,64 @@ export default function TorClient({ entity, directors, template }: Props) {
                       <li>Any specific chairman powers or voting provisions</li>
                     </ul>
                   </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-xs font-medium text-gray-600 mb-2">Company Constitution / Articles</p>
-                      <FileDropZone
-                        label="Upload Constitution"
-                        hint="PDF or DOCX · Drag & drop or click"
-                        value={constitutionFile}
-                        onChange={setConstitutionFile}
-                      />
+                      {storedConstitution && !constitutionFile ? (
+                        <StoredFileBadge
+                          file={storedConstitution}
+                          onDownload={() => downloadStoredFile(storedConstitution)}
+                          onClear={() => clearStoredFile('constitutionFile')}
+                        />
+                      ) : (
+                        <FileDropZone
+                          label="Upload Constitution"
+                          hint="PDF or DOCX · Drag & drop or click"
+                          value={constitutionFile}
+                          onChange={setConstitutionFile}
+                        />
+                      )}
+                      {storedConstitution && constitutionFile && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          ↑ New file will replace the stored one when you Save Settings
+                        </p>
+                      )}
                     </div>
                     <div>
                       <p className="text-xs font-medium text-gray-600 mb-2">Shareholder Agreement (SHA)</p>
-                      <FileDropZone
-                        label="Upload SHA"
-                        hint="PDF or DOCX · Drag & drop or click"
-                        value={shaFile}
-                        onChange={setShaFile}
-                      />
+                      {storedSha && !shaFile ? (
+                        <StoredFileBadge
+                          file={storedSha}
+                          onDownload={() => downloadStoredFile(storedSha)}
+                          onClear={() => clearStoredFile('shaFile')}
+                        />
+                      ) : (
+                        <FileDropZone
+                          label="Upload SHA"
+                          hint="PDF or DOCX · Drag & drop or click"
+                          value={shaFile}
+                          onChange={setShaFile}
+                        />
+                      )}
+                      {storedSha && shaFile && (
+                        <p className="text-xs text-amber-600 mt-1">
+                          ↑ New file will replace the stored one when you Save Settings
+                        </p>
+                      )}
                     </div>
                   </div>
-                  {!hasFiles && (
+
+                  {hasNewFiles && (
+                    <div className="bg-indigo-50 rounded-lg px-4 py-3 flex items-start gap-2">
+                      <Save className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
+                      <p className="text-xs text-indigo-700">
+                        Click <strong>Save Settings</strong> to store these files for this entity. Stored files will be used automatically in future ToR generations without re-uploading.
+                      </p>
+                    </div>
+                  )}
+
+                  {!hasNewFiles && !storedConstitution && !storedSha && (
                     <p className="text-xs text-gray-400 text-center">
                       No files uploaded — generating with statutory template only (Stage 1)
                     </p>
@@ -485,8 +793,18 @@ export default function TorClient({ entity, directors, template }: Props) {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Mode</span>
-                  <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${hasFiles ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {hasFiles ? '✦ Stage 2 + AI' : 'Stage 1 — Template'}
+                  <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${hasFilesForGeneration ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'}`}>
+                    {hasFilesForGeneration ? '✦ Stage 2 + AI' : 'Stage 1 — Template'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">AI</span>
+                  <span className={`font-medium text-xs px-2 py-0.5 rounded-full ${
+                    aiEnabled === null ? 'bg-gray-100 text-gray-400'
+                    : aiEnabled ? 'bg-green-100 text-green-700'
+                    : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {aiEnabled === null ? 'Checking…' : aiEnabled ? 'Configured' : 'Not configured'}
                   </span>
                 </div>
               </div>
@@ -535,7 +853,7 @@ export default function TorClient({ entity, directors, template }: Props) {
                 onClick={handleGenerate}
                 disabled={generating}
                 className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                  hasFiles
+                  hasFilesForGeneration
                     ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white hover:from-violet-700 hover:to-indigo-700 shadow-md shadow-indigo-200'
                     : 'bg-indigo-600 text-white hover:bg-indigo-700'
                 } disabled:opacity-60 disabled:cursor-not-allowed`}
@@ -544,8 +862,8 @@ export default function TorClient({ entity, directors, template }: Props) {
                   <><Loader2 className="w-4 h-4 animate-spin" /> Generating…</>
                 ) : (
                   <>
-                    {hasFiles ? <Sparkles className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-                    {hasFiles ? 'Generate with AI Analysis' : 'Generate ToR Document'}
+                    {hasFilesForGeneration ? <Sparkles className="w-4 h-4" /> : <Download className="w-4 h-4" />}
+                    {hasFilesForGeneration ? 'Generate with AI Analysis' : 'Generate ToR Document'}
                   </>
                 )}
               </button>

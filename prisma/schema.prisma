@@ -193,6 +193,7 @@ model Entity {
   status             EntityStatus @default(active)
   healthScore        Int?         // 0-100, computed by alert engine
   notes              String?
+  torSettings        Json?        // Persisted ToR configuration per entity
 
   // Self-referential parent/subsidiary tree
   parentEntityId String?

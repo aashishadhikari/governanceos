@@ -195,7 +195,8 @@ async function generateTorDocx(params: {
   const script = `
 const { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
         HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType,
-        LevelFormat, Header, Footer, PageNumber, TabStopType, TabStopPosition } = require('docx');
+        LevelFormat, Header, Footer, PageNumber, TabStopType, TabStopPosition,
+        PageBreak } = require('docx');
 const fs = require('fs');
 
 const border = { style: BorderStyle.SINGLE, size: 1, color: 'CCCCCC' };
@@ -532,7 +533,21 @@ Packer.toBuffer(doc).then(buf => {
       timeout: 30000,
       cwd: projectRoot,
     });
+    if (!require('fs').existsSync(outputPath)) {
+      throw new Error('Document generation script completed but no output file was produced');
+    }
     return readFileSync(outputPath);
+  } catch (err: unknown) {
+    // Surface the child process stderr/stdout so we can debug generation errors
+    if (err && typeof err === 'object' && ('stderr' in err || 'stdout' in err)) {
+      const e = err as Record<string, unknown>;
+      const stderr = Buffer.isBuffer(e.stderr) ? e.stderr.toString() : String(e.stderr ?? '');
+      const stdout = Buffer.isBuffer(e.stdout) ? e.stdout.toString() : String(e.stdout ?? '');
+      console.error('[tor/generate] Node script stderr:', stderr);
+      console.error('[tor/generate] Node script stdout:', stdout);
+      throw new Error(`Document generation failed: ${stderr || stdout || String(err)}`);
+    }
+    throw err;
   } finally {
     // Clean up temp files
     try { require('fs').unlinkSync(scriptPath); } catch { /* ignore */ }
@@ -541,6 +556,17 @@ Packer.toBuffer(doc).then(buf => {
 }
 
 // ── Route handler ─────────────────────────────────────────────────────────────
+
+/** GET /api/entities/[id]/tor — returns AI availability status */
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  await params; // consume params (entity validation not needed for status check)
+  return NextResponse.json({
+    aiEnabled: !!process.env.ANTHROPIC_API_KEY,
+  });
+}
 
 export async function POST(
   request: NextRequest,
@@ -571,6 +597,14 @@ export async function POST(
       constitutionFile ? extractTextFromFile(constitutionFile) : Promise.resolve(null),
       shaFile ? extractTextFromFile(shaFile) : Promise.resolve(null),
     ]);
+
+    // Stage 2: check AI availability when files are uploaded
+    if ((constitutionFile || shaFile) && !process.env.ANTHROPIC_API_KEY) {
+      return NextResponse.json({
+        error: 'AI analysis requires ANTHROPIC_API_KEY to be configured. Please set this environment variable or generate without uploading documents to use Stage 1 (template-only) mode.',
+        code: 'AI_NOT_CONFIGURED',
+      }, { status: 422 });
+    }
 
     // Stage 2: analyze with Claude
     const aiAnalysis = await analyzeDocumentsWithClaude(
