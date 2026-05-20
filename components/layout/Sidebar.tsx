@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -14,14 +15,15 @@ import { useState } from 'react';
 import type { UserRole } from '@/lib/db/users';
 import { ROLE_LABELS } from '@/lib/db/users';
 
-const ALL_NAV = [
+const ALL_NAV: { href: string; label: string; icon: React.ElementType; module: string; badge?: boolean; indent?: boolean; exact?: boolean }[] = [
   { href: '/dashboard',      label: 'Dashboard',           icon: LayoutDashboard, module: 'entities' },
   { href: '/entities',       label: 'Entities',             icon: Building2,       module: 'entities' },
   { href: '/org-chart',      label: 'Org Chart',            icon: GitBranch,       module: 'entities' },
   { href: '/directors',      label: 'Directors',            icon: Users,           module: 'directors' },
   { href: '/board-meetings', label: 'Board Meetings',       icon: ClipboardList,   module: 'meetings' },
   { href: '/calendar',       label: 'Key Dates',            icon: Calendar,        module: 'compliance' },
-  { href: '/compliance',     label: 'Compliance & Finance', icon: Calendar,        module: 'compliance' },
+  { href: '/compliance',              label: 'Compliance & Finance', icon: Calendar,        module: 'compliance', exact: true },
+  { href: '/compliance/regulatory-calendar', label: 'Regulatory Calendar', icon: ClipboardList, module: 'compliance', indent: true },
   { href: '/licenses',       label: 'Licenses',             icon: Shield,          module: 'licenses' },
   { href: '/capital',        label: 'Regulatory Capital',   icon: TrendingUp,      module: 'capital' },
   { href: '/alerts',         label: 'Alerts',               icon: Bell,            module: 'alerts',    badge: true },
@@ -85,14 +87,17 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {visibleNav.map(({ href, label, icon: Icon, badge }) => {
-          const isActive = pathname === href || pathname.startsWith(href + '/');
+        {visibleNav.map(({ href, label, icon: Icon, badge, indent, exact }) => {
+          const isActive = exact
+            ? pathname === href
+            : pathname === href || pathname.startsWith(href + '/');
           return (
             <Link
               key={href}
               href={href}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group',
+                indent ? 'ml-4 text-xs py-2' : '',
                 isActive
                   ? 'bg-indigo-600 text-white'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'

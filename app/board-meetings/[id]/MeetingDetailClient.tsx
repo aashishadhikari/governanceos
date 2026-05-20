@@ -83,7 +83,7 @@ function formatFileSize(bytes: number): string {
 }
 
 function generateICS(meeting: BoardMeeting, entityName: string): string {
-  const [y, mo, d] = meeting.meetingDate.split('-');
+  const [y, mo, d] = String(meeting.meetingDate).slice(0, 10).split('-');
   // Guard against null/missing meetingTime
   const timeStr = meeting.meetingTime ?? '09:00';
   const [h, m] = timeStr.split(':');

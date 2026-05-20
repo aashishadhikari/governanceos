@@ -11,7 +11,7 @@ import type { BoardMeeting, Entity } from '@/lib/db/schema';
 
 function generateICS(meeting: BoardMeeting, entityName: string): string {
   const pad = (n: number) => String(n).padStart(2, '0');
-  const dt = new Date(`${meeting.meetingDate}T${meeting.meetingTime ?? '10:00'}:00`);
+  const dt = new Date(`${String(meeting.meetingDate).slice(0, 10)}T${meeting.meetingTime ?? '10:00'}:00`);
   const end = new Date(dt.getTime() + 2 * 60 * 60 * 1000); // +2 hours
   const fmt = (d: Date) =>
     `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
