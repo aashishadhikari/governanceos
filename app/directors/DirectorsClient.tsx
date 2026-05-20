@@ -88,38 +88,49 @@ function DateSelect({
   );
 }
 
+// ── Director role options ────────────────────────────────────────────────────
+// Grouped: Board → Officers → Other. "Other" reveals a free-text input.
 const ROLE_OPTIONS = [
-  { value: 'Director', label: 'Director' },
-  { value: 'Director & CEO', label: 'Director & CEO' },
-  { value: 'Chief Executive Officer', label: 'Chief Executive Officer (Executive)' },
-  { value: 'Managing Director', label: 'Managing Director (Executive)' },
-  { value: 'President Director', label: 'President Director' },
-  { value: 'Chief Financial Officer', label: 'Chief Financial Officer (Executive)' },
-  { value: 'Chief Compliance Officer', label: 'Chief Compliance Officer (Executive)' },
-  { value: 'Chief Operating Officer', label: 'Chief Operating Officer (Executive)' },
+  // Board-level
   { value: 'Chairman', label: 'Chairman' },
-  { value: 'Non-Executive Director', label: 'Non-Executive Director' },
+  { value: 'Director & CEO', label: 'Director & CEO' },
+  { value: 'Chief Executive Officer', label: 'Chief Executive Officer' },
+  { value: 'Managing Director', label: 'Managing Director' },
+  { value: 'President Director', label: 'President Director' },
+  { value: 'Executive Director', label: 'Executive Director' },
+  { value: 'Non-Executive Director', label: 'Non-Executive Director (NED)' },
   { value: 'Independent Director', label: 'Independent Director' },
-  { value: 'Vice President', label: 'Vice President (Senior Employee)' },
+  { value: 'Alternate Director', label: 'Alternate Director' },
+  // Officers & key roles
+  { value: 'Company Secretary', label: 'Company Secretary' },
+  { value: 'Chief Financial Officer', label: 'Chief Financial Officer' },
+  { value: 'Chief Compliance Officer', label: 'Chief Compliance Officer' },
+  { value: 'Chief Operating Officer', label: 'Chief Operating Officer' },
+  { value: 'Officer', label: 'Officer' },
+  { value: 'Vice President', label: 'Vice President' },
+  // Jurisdiction-specific
   { value: 'Legal Representative', label: 'Legal Representative' },
   { value: 'Administrator', label: 'Administrator' },
   { value: 'Commissioner', label: 'Commissioner' },
-  { value: 'Officer', label: 'Officer / Senior Employee' },
+  // Free-text fallback
+  { value: '__other__', label: 'Other (specify below)' },
 ];
 
 const ROLE_CATEGORY = (role: string) => {
   const r = role.toLowerCase();
   if (r.includes('independent')) return 'independent';
-  if (r.includes('non-executive')) return 'non-executive';
-  if (['ceo', 'president', 'cfo', 'coo', 'cmo', 'cto', 'cco', 'chief', 'managing director', 'chairman'].some(k => r.includes(k))) return 'executive';
-  return 'employee';
+  if (r.includes('non-executive') || r === 'ned') return 'non-executive';
+  if (r.includes('company secretary')) return 'secretary';
+  if (['ceo', 'president', 'cfo', 'coo', 'cmo', 'cto', 'cco', 'chief', 'managing director', 'chairman', 'executive director'].some(k => r.includes(k))) return 'executive';
+  return 'officer';
 };
 
 const CATEGORY_CONFIG = {
   executive: { label: 'Executive Directors', color: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500', icon: Briefcase },
-  'non-executive': { label: 'Non-Executive Directors', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400', icon: Users },
+  'non-executive': { label: 'Non-Executive Directors (NED)', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400', icon: Users },
   independent: { label: 'Independent Directors', color: 'bg-green-100 text-green-700', dot: 'bg-green-500', icon: ShieldCheck },
-  employee: { label: 'Senior Employees / Officers', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400', icon: UserCheck },
+  secretary: { label: 'Company Secretaries', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-400', icon: UserCheck },
+  officer: { label: 'Officers & Other Roles', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400', icon: UserCheck },
 };
 
 // ISO-style nationality list (common demonyms) - alphabetised
@@ -138,7 +149,9 @@ const NATIONALITY_OPTIONS: { value: string; label: string }[] = [
   'Venezuelan', 'Vietnamese',
 ].map(n => ({ value: n, label: n }));
 
-const BLANK_ADD = { name: '', email: '', role: '', entityId: '', nationality: '', appointmentDate: '', termExpiry: '' };
+const KNOWN_ROLES = new Set(ROLE_OPTIONS.map(o => o.value).filter(v => v !== '__other__'));
+
+const BLANK_ADD = { name: '', email: '', role: '', otherRole: '', entityId: '', nationality: '', appointmentDate: '', termExpiry: '' };
 
 interface Props {
   initialDirectors: Director[];
@@ -159,6 +172,9 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  // Free-text fallback for "Other" role
+  const [addOtherRole, setAddOtherRole] = useState('');
+  const [editOtherRole, setEditOtherRole] = useState('');
 
   const handleDelete = async (dir: Director) => {
     if (!confirm(`Remove ${dir.name}? This cannot be undone.`)) return;
@@ -191,10 +207,12 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
 
   const openEdit = (dir: Director) => {
     setEditDir(dir);
+    const isCustomRole = dir.role && !KNOWN_ROLES.has(dir.role);
+    setEditOtherRole(isCustomRole ? dir.role : '');
     setEditForm({
       name: dir.name,
       email: dir.email,
-      role: dir.role,
+      role: isCustomRole ? '__other__' : (dir.role ?? ''),
       nationality: dir.nationality,
       appointmentDate: toYMD(dir.appointmentDate),
       termExpiry: toYMD(dir.termExpiry),
@@ -209,6 +227,8 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
     e.preventDefault();
     setAddSaving(true);
     try {
+      const resolvedRole = addForm.role === '__other__' ? addOtherRole.trim() : addForm.role;
+      if (!resolvedRole) { alert('Please specify a role.'); setAddSaving(false); return; }
       const res = await fetch('/api/directors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -216,7 +236,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
           entityId: addForm.entityId,
           name: addForm.name,
           email: addForm.email,
-          role: addForm.role,
+          role: resolvedRole,
           nationality: addForm.nationality,
           appointmentDate: addForm.appointmentDate || undefined,
           termExpiry: addForm.termExpiry || undefined,
@@ -229,7 +249,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
       }
       setDirectorList(prev => [...prev, json.data]);
       setAddSaved(true);
-      setTimeout(() => { setAddSaved(false); setAddOpen(false); setAddForm(BLANK_ADD); }, 1500);
+      setTimeout(() => { setAddSaved(false); setAddOpen(false); setAddForm(BLANK_ADD); setAddOtherRole(''); }, 1500);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to add director');
     } finally {
@@ -242,13 +262,15 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
     if (!editDir) return;
     setEditSaving(true);
     try {
+      const resolvedEditRole = editForm.role === '__other__' ? editOtherRole.trim() : editForm.role;
+      if (!resolvedEditRole) { alert('Please specify a role.'); setEditSaving(false); return; }
       const res = await fetch(`/api/directors/${editDir.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editForm.name,
           email: editForm.email,
-          role: editForm.role,
+          role: resolvedEditRole,
           nationality: editForm.nationality,
           appointmentDate: editForm.appointmentDate || undefined,
           termExpiry: editForm.termExpiry || null,
@@ -286,11 +308,12 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
       <div className="px-8 py-6 space-y-6">
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-5 gap-4">
           {[
             { label: 'Executive Directors', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'executive').length, color: 'bg-indigo-500' },
-            { label: 'Non-Executive', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'non-executive').length, color: 'bg-blue-500' },
+            { label: 'Non-Executive (NED)', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'non-executive').length, color: 'bg-blue-500' },
             { label: 'Independent Directors', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'independent').length, color: 'bg-green-500' },
+            { label: 'Company Secretaries', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'secretary').length, color: 'bg-purple-500' },
             { label: 'Terms Expiring <1yr', value: directorList.filter(d => {
               if (!d.termExpiry) return false;
               const days = Math.ceil((new Date(d.termExpiry).getTime() - Date.now()) / 86400000);
@@ -320,7 +343,8 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
               executive: entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'executive'),
               'non-executive': entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'non-executive'),
               independent: entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'independent'),
-              employee: entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'employee'),
+              secretary: entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'secretary'),
+              officer: entityDirs.filter(d => ROLE_CATEGORY(d.role) === 'officer'),
             };
             return (
               <div key={entity.id} className="bg-white rounded-xl border border-gray-100 overflow-hidden">
@@ -484,7 +508,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                 <Input placeholder="e.g. Jane Smith" value={addForm.name} onChange={setAdd('name')} required />
               </FormField>
               <FormField label="Email" required>
-                <Input type="email" placeholder="jane@governanceos.app" value={addForm.email} onChange={setAdd('email')} required />
+                <Input type="email" placeholder="jane@nium.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
               <FormField label="Nationality">
                 <Select value={addForm.nationality} onChange={setAdd('nationality')} placeholder="Select nationality" options={NATIONALITY_OPTIONS} />
@@ -492,6 +516,16 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
               <FormField label="Role / Title" required className="col-span-2">
                 <Select value={addForm.role} onChange={setAdd('role')} required placeholder="Select role" options={ROLE_OPTIONS} />
               </FormField>
+              {addForm.role === '__other__' && (
+                <FormField label="Specify Role" required className="col-span-2">
+                  <Input
+                    placeholder="e.g. Resident Director, Tax Representative…"
+                    value={addOtherRole}
+                    onChange={e => setAddOtherRole(e.target.value)}
+                    required
+                  />
+                </FormField>
+              )}
               <FormField label="Entity" required className="col-span-2">
                 <Select value={addForm.entityId} onChange={setAdd('entityId')} required placeholder="Select entity"
                   options={entities.map(e => ({ value: e.id, label: e.name }))} />
@@ -525,7 +559,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                 <Input placeholder="Full name" value={editForm.name} onChange={setEdit('name')} required />
               </FormField>
               <FormField label="Email" required>
-                <Input type="email" placeholder="email@governanceos.app" value={editForm.email} onChange={setEdit('email')} required />
+                <Input type="email" placeholder="email@nium.com" value={editForm.email} onChange={setEdit('email')} required />
               </FormField>
               <FormField label="Nationality">
                 <Select value={editForm.nationality} onChange={setEdit('nationality')} placeholder="Select nationality" options={NATIONALITY_OPTIONS} />
@@ -533,6 +567,16 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
               <FormField label="Role / Title" required className="col-span-2">
                 <Select value={editForm.role} onChange={setEdit('role')} required placeholder="Select role" options={ROLE_OPTIONS} />
               </FormField>
+              {editForm.role === '__other__' && (
+                <FormField label="Specify Role" required className="col-span-2">
+                  <Input
+                    placeholder="e.g. Resident Director, Tax Representative…"
+                    value={editOtherRole}
+                    onChange={e => setEditOtherRole(e.target.value)}
+                    required
+                  />
+                </FormField>
+              )}
               <FormField label="Appointment Date" required>
                 <DateSelect value={editForm.appointmentDate} onChange={setEditDate('appointmentDate')} required minYear={1990} />
               </FormField>

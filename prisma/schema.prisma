@@ -362,6 +362,8 @@ model ComplianceObligation {
   owner           String
   notes           String?
   recurrence      String           @default("annual")
+  source          String           @default("manual") // "manual" | "calendar"
+  calendarYear    Int?             // e.g. 2026 — set when imported from regulatory calendar
 
   // Filing audit trail
   filingReference String?

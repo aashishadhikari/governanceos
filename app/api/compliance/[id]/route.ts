@@ -29,6 +29,11 @@ export async function PATCH(
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.filingReference !== undefined) data.filingReference = body.filingReference;
     if (body.confirmedBy !== undefined) data.confirmedBy = body.confirmedBy;
+    if (body.requirementType !== undefined) data.requirementType = body.requirementType;
+    if (body.regulator !== undefined) data.regulator = body.regulator;
+    if (body.description !== undefined) data.description = body.description;
+    if (body.recurrence !== undefined) data.recurrence = body.recurrence;
+    if (body.dueDate !== undefined) data.dueDate = body.dueDate ? new Date(body.dueDate) : undefined;
     if (body.submittedDate !== undefined) {
       data.submittedDate = body.submittedDate ? new Date(body.submittedDate) : null;
     }
