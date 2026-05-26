@@ -1,0 +1,17 @@
+{
+  "_comment": "Maps DRI names (as they appear in regulatory calendar notes) to Slack member IDs and email addresses. Slack member IDs start with U (e.g. U012AB3CD). Find them in Slack: click a user's profile → More → Copy member ID.",
+  "thresholds": [30, 14, 7],
+  "slackChannel": "#compliance-alerts",
+  "dris": {
+    "Compliance Lead": {
+      "slackId": "",
+      "email": "compliance@yourcompany.com",
+      "name": "Compliance Lead"
+    },
+    "Finance Lead": {
+      "slackId": "",
+      "email": "finance@yourcompany.com",
+      "name": "Finance Lead"
+    }
+  }
+}

@@ -48,6 +48,8 @@ const ROLE_BADGE: Record<UserRole, string> = {
   super_admin: 'bg-purple-500/20 text-purple-200',
   admin:       'bg-indigo-500/20 text-indigo-200',
   legal:       'bg-blue-500/20 text-blue-200',
+  compliance:  'bg-teal-500/20 text-teal-200',
+  mlro:        'bg-orange-500/20 text-orange-200',
   finance:     'bg-green-500/20 text-green-200',
   viewer:      'bg-slate-500/20 text-slate-300',
 };

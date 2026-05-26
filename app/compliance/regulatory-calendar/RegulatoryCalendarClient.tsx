@@ -6,7 +6,7 @@ import { getFlagEmoji } from '@/lib/utils';
 import {
   Upload, RefreshCw, Plus, Pencil, Trash2, X, ChevronDown,
   ChevronRight, Calendar, AlertTriangle, CheckCircle2, Clock3,
-  Globe, Filter, Download,
+  Globe, Filter, Download, Bell, Settings2,
 } from 'lucide-react';
 import { FormField, Input, Select, Button } from '@/components/ui/FormField';
 import Modal from '@/components/ui/Modal';
@@ -35,6 +35,18 @@ interface GroupedJurisdiction {
   country: string;
   entityName: string;
   rows: CalendarRow[];
+}
+
+interface DriEntry {
+  slackId: string;
+  email: string;
+  name: string;
+}
+
+interface DriConfig {
+  thresholds: number[];
+  slackChannel: string;
+  dris: Record<string, DriEntry>;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -152,6 +164,11 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
   const [editRow, setEditRow] = useState<CalendarRow | null>(null);
   const [editForm, setEditForm] = useState({ ...BLANK });
   const [editSaving, setEditSaving] = useState(false);
+  const [driAlertSending, setDriAlertSending] = useState(false);
+  const [driAlertResult, setDriAlertResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [driConfigOpen, setDriConfigOpen] = useState(false);
+  const [driConfig, setDriConfig] = useState<DriConfig | null>(null);
+  const [driConfigSaving, setDriConfigSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Load data ──────────────────────────────────────────────────────────────
@@ -332,6 +349,52 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
     setRows(prev => prev.filter(r => r.id !== row.id));
   };
 
+  // ── DRI Alerts ─────────────────────────────────────────────────────────────
+
+  const sendDriAlerts = async () => {
+    setDriAlertSending(true);
+    setDriAlertResult(null);
+    try {
+      const res = await fetch('/api/cron/dri-alerts');
+      const json = await res.json();
+      setDriAlertResult({ ok: json.ok, message: json.message ?? (json.error || 'Unknown error') });
+    } catch (err) {
+      setDriAlertResult({ ok: false, message: String(err) });
+    } finally {
+      setDriAlertSending(false);
+    }
+  };
+
+  const openDriConfig = async () => {
+    setDriConfigOpen(true);
+    if (!driConfig) {
+      try {
+        const res = await fetch('/api/admin/dri-config');
+        const json = await res.json();
+        setDriConfig(json);
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const saveDriConfig = async () => {
+    if (!driConfig) return;
+    setDriConfigSaving(true);
+    try {
+      await fetch('/api/admin/dri-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(driConfig),
+      });
+      setDriConfigOpen(false);
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setDriConfigSaving(false);
+    }
+  };
+
   // ── Toggle expand ──────────────────────────────────────────────────────────
 
   const toggle = (key: string) =>
@@ -387,6 +450,22 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
               Import Excel
               <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileUpload} />
             </label>
+            <button
+              onClick={sendDriAlerts}
+              disabled={driAlertSending}
+              className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+              title="Send Slack DMs to DRIs for filings due within 30 days"
+            >
+              {driAlertSending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4" />}
+              {driAlertSending ? 'Sending…' : 'Send DRI Alerts'}
+            </button>
+            <button
+              onClick={openDriConfig}
+              className="flex items-center gap-2 bg-white border border-gray-200 text-gray-700 px-3 py-2 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+              title="Configure DRI Slack IDs"
+            >
+              <Settings2 className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
@@ -396,6 +475,15 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
             {importResult.startsWith('Error') ? <AlertTriangle className="w-4 h-4 shrink-0" /> : <CheckCircle2 className="w-4 h-4 shrink-0" />}
             {importResult}
             <button onClick={() => setImportResult(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
+          </div>
+        )}
+
+        {/* DRI alert result message */}
+        {driAlertResult && (
+          <div className={`flex items-center gap-2 text-sm px-4 py-2.5 rounded-lg border ${driAlertResult.ok ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'}`}>
+            {driAlertResult.ok ? <Bell className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
+            {driAlertResult.message}
+            <button onClick={() => setDriAlertResult(null)} className="ml-auto"><X className="w-3.5 h-3.5" /></button>
           </div>
         )}
 
@@ -577,7 +665,7 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
               <Input value={addForm.description} onChange={e => setAddForm(p => ({ ...p, description: e.target.value }))} placeholder="e.g. Annual · Dec 31" />
             </FormField>
             <FormField label="Notes / DRI" className="col-span-2" hint="e.g. Compliance DRI: Jane | Finance DRI: Matt">
-              <Input value={addForm.notes} onChange={e => setAddForm(p => ({ ...p, notes: e.target.value }))} placeholder="Compliance DRI: … | Finance DRI: …" />
+              <Input value={addForm.notes ?? ''} onChange={e => setAddForm(p => ({ ...p, notes: e.target.value }))} placeholder="Compliance DRI: … | Finance DRI: …" />
             </FormField>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
@@ -585,6 +673,74 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
             <Button type="submit" loading={addSaving}>Add Entry</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ── DRI Config Modal ── */}
+      <Modal isOpen={driConfigOpen} onClose={() => setDriConfigOpen(false)} title="DRI Alert Configuration" subtitle="Map DRI names to Slack member IDs for automated alerts">
+        <div className="space-y-4">
+          {!driConfig ? (
+            <div className="text-center py-8 text-gray-400 text-sm">Loading…</div>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-xs text-blue-700">
+                <p className="font-medium mb-1">How to find a Slack member ID</p>
+                <p>Open Slack → click the person's name → View profile → More (…) → Copy member ID. Starts with <code className="bg-blue-100 px-1 rounded">U</code> (e.g. U012AB3CD).</p>
+              </div>
+
+              <div className="space-y-1">
+                <div className="grid grid-cols-3 gap-3 text-xs font-medium text-gray-500 uppercase tracking-wide px-1 pb-1 border-b border-gray-100">
+                  <span>DRI Name</span>
+                  <span>Slack Member ID</span>
+                  <span>Email</span>
+                </div>
+                {Object.entries(driConfig.dris).map(([key, dri]) => (
+                  <div key={key} className="grid grid-cols-3 gap-3 items-center py-1.5">
+                    <span className="text-sm font-medium text-gray-800">{dri.name}</span>
+                    <input
+                      type="text"
+                      value={dri.slackId}
+                      placeholder="U012AB3CD"
+                      onChange={e => setDriConfig(prev => prev ? {
+                        ...prev,
+                        dris: { ...prev.dris, [key]: { ...prev.dris[key], slackId: e.target.value } }
+                      } : prev)}
+                      className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                    <input
+                      type="email"
+                      value={dri.email}
+                      placeholder="name@company.com"
+                      onChange={e => setDriConfig(prev => prev ? {
+                        ...prev,
+                        dris: { ...prev.dris, [key]: { ...prev.dris[key], email: e.target.value } }
+                      } : prev)}
+                      className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="pt-3 border-t border-gray-100">
+                <div className="flex items-center gap-2 mb-3">
+                  <label className="text-xs font-medium text-gray-700">Fallback Slack channel</label>
+                  <input
+                    type="text"
+                    value={driConfig.slackChannel}
+                    onChange={e => setDriConfig(prev => prev ? { ...prev, slackChannel: e.target.value } : prev)}
+                    placeholder="#compliance-alerts"
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 font-mono flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  />
+                </div>
+                <p className="text-xs text-gray-400">Used when a DRI has no Slack member ID configured. Add SLACK_BOT_TOKEN to .env to enable Slack delivery.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <Button type="button" variant="secondary" onClick={() => setDriConfigOpen(false)}>Cancel</Button>
+                <Button type="button" loading={driConfigSaving} onClick={saveDriConfig}>Save Configuration</Button>
+              </div>
+            </>
+          )}
+        </div>
       </Modal>
 
       {/* ── Edit Entry Modal ── */}
@@ -613,7 +769,7 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
               <Input value={editForm.description} onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} />
             </FormField>
             <FormField label="Notes / DRI" className="col-span-2">
-              <Input value={editForm.notes} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} />
+              <Input value={editForm.notes ?? ''} onChange={e => setEditForm(p => ({ ...p, notes: e.target.value }))} />
             </FormField>
           </div>
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
