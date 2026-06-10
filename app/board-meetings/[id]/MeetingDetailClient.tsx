@@ -83,34 +83,34 @@ function formatFileSize(bytes: number): string {
 }
 
 function generateICS(meeting: BoardMeeting, entityName: string): string {
-  const [y, mo, d] = String(meeting.meetingDate).slice(0, 10).split('-');
-  // Guard against null/missing meetingTime
+  const pad = (n: number) => String(n).padStart(2, '0');
+  // Parse date and time, then convert to UTC for maximum compatibility.
+  // Using TZID=<non-IANA-id> breaks Apple Calendar on Mac — UTC Z-suffix is universally accepted.
+  const dateStr = String(meeting.meetingDate).slice(0, 10); // "YYYY-MM-DD"
   const timeStr = meeting.meetingTime ?? '09:00';
-  const [h, m] = timeStr.split(':');
-  const dtStart = `${y}${mo}${d}T${(h ?? '09').padStart(2,'0')}${(m ?? '00').padStart(2,'0')}00`;
-  // Add 2 hours for end time
-  const endH = String(Number(h ?? 9) + 2).padStart(2, '0');
-  const dtEnd = `${y}${mo}${d}T${endH}${(m ?? '00').padStart(2,'0')}00`;
-  // Guard against null timezone and null location
-  const tz = meeting.timezone || 'UTC';
+  const dt = new Date(`${dateStr}T${timeStr}:00`);
+  const end = new Date(dt.getTime() + 2 * 60 * 60 * 1000); // +2 hours
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
   const location = meeting.virtualLink ?? meeting.location ?? '';
 
   return [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//GovernanceOS//EN',
+    'PRODID:-//EntityOS//Nium//EN',
     'BEGIN:VEVENT',
-    `UID:${meeting.id}@governanceos.app`,
-    `DTSTART;TZID=${tz}:${dtStart}`,
-    `DTEND;TZID=${tz}:${dtEnd}`,
+    `UID:${meeting.id}@entityos.nium.com`,
+    `DTSTAMP:${fmt(new Date())}`,
+    `DTSTART:${fmt(dt)}`,
+    `DTEND:${fmt(end)}`,
     `SUMMARY:${meeting.meetingType} — ${entityName}`,
-    `DESCRIPTION:Agenda: ${meeting.agenda ?? ''}`,
-    location ? `LOCATION:${location}` : 'LOCATION:',
-    `ORGANIZER:mailto:admin@governanceos.app`,
+    `DESCRIPTION:Agenda: ${(meeting.agenda ?? '').replace(/\n/g, '\\n')}`,
+    location ? `LOCATION:${location}` : '',
+    `ORGANIZER:mailto:prajit@nium.com`,
     'STATUS:CONFIRMED',
     'END:VEVENT',
     'END:VCALENDAR',
-  ].join('\r\n');
+  ].filter(Boolean).join('\r\n');
 }
 
 type Tab = 'overview' | 'attendees' | 'documents' | 'resolutions';
@@ -128,6 +128,9 @@ export default function MeetingDetailClient({
   const [notes, setNotes]         = useState('');
   const [editingNotes, setEditingNotes] = useState(false);
   const [savedNotes, setSavedNotes]     = useState(false);
+  const [editingType, setEditingType]   = useState(false);
+  const [meetingTypeVal, setMeetingTypeVal] = useState('');
+  const [deletingMeeting, setDeletingMeeting] = useState(false);
 
   // Mark as Held state
   const [heldOpen, setHeldOpen]     = useState(false);
@@ -143,7 +146,7 @@ export default function MeetingDetailClient({
     presentIds:       [] as string[],
     minutesSummary:   '',
     minutesFilename:  '',
-    confirmedBy:      'Alex Chen',
+    confirmedBy:      'Prajit Nanu',
   });
 
   const openHeldModal = (mtg: BoardMeeting) => {
@@ -155,7 +158,7 @@ export default function MeetingDetailClient({
       presentIds:       invitedDirs.filter(a => a.status === 'accepted').map(a => a.directorId),
       minutesSummary:   '',
       minutesFilename:  '',
-      confirmedBy:      'Alex Chen',
+      confirmedBy:      'Prajit Nanu',
     });
     setHeldStep(1);
     setHeldSaved(false);
@@ -204,12 +207,12 @@ export default function MeetingDetailClient({
   const [docSaved, setDocSaved]       = useState(false);
   const [docSelectedFile, setDocSelectedFile] = useState<File | null>(null);
   const [docForm, setDocForm]         = useState({
-    name: '', category: 'pack', uploadedBy: 'Alex Chen',
+    name: '', category: 'pack', uploadedBy: 'Prajit Nanu',
   });
   const docFileInputRef = useRef<HTMLInputElement>(null);
 
   const openDocModal = () => {
-    setDocForm({ name: '', category: 'pack', uploadedBy: 'Alex Chen' });
+    setDocForm({ name: '', category: 'pack', uploadedBy: 'Prajit Nanu' });
     setDocSelectedFile(null);
     setDocSaved(false);
     setDocOpen(true);
@@ -271,13 +274,13 @@ export default function MeetingDetailClient({
   const [resSaving, setResSaving] = useState(false);
   const [resSaved, setResSaved]   = useState(false);
   const [resForm, setResForm]     = useState({
-    title: '', description: '', proposedBy: 'Alex Chen',
+    title: '', description: '', proposedBy: 'Prajit Nanu',
     votesFor: 0, votesAgainst: 0, votesAbstain: 0,
     status: 'proposed' as MeetingResolution['status'], notes: '',
   });
 
   const openResModal = () => {
-    setResForm({ title: '', description: '', proposedBy: 'Alex Chen', votesFor: 0, votesAgainst: 0, votesAbstain: 0, status: 'proposed', notes: '' });
+    setResForm({ title: '', description: '', proposedBy: 'Prajit Nanu', votesFor: 0, votesAgainst: 0, votesAbstain: 0, status: 'proposed', notes: '' });
     setResSaved(false);
     setResOpen(true);
   };
@@ -312,6 +315,39 @@ export default function MeetingDetailClient({
       alert(err instanceof Error ? err.message : 'Failed to add resolution');
     } finally {
       setResSaving(false);
+    }
+  };
+
+  const saveMeetingType = async (newType: string) => {
+    try {
+      const res = await fetch(`/api/board-meetings/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ meetingType: newType }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        setMeetingData(json.data);
+      }
+    } catch { /* ignore */ }
+    setEditingType(false);
+  };
+
+  const deleteMeeting = async () => {
+    if (!confirm('Delete this board meeting? This cannot be undone.')) return;
+    setDeletingMeeting(true);
+    try {
+      const res = await fetch(`/api/board-meetings/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        window.location.href = '/board-meetings';
+      } else {
+        const j = await res.json();
+        alert(j.error || 'Failed to delete');
+        setDeletingMeeting(false);
+      }
+    } catch {
+      alert('Failed to delete');
+      setDeletingMeeting(false);
     }
   };
 
@@ -400,7 +436,24 @@ export default function MeetingDetailClient({
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-xl">{getFlagEmoji(entity?.country ?? '')}</span>
-              <h1 className="text-2xl font-bold text-slate-900">{meeting.meetingType}</h1>
+              {editingType ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    autoFocus
+                    value={meetingTypeVal}
+                    onChange={e => setMeetingTypeVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') saveMeetingType(meetingTypeVal); if (e.key === 'Escape') setEditingType(false); }}
+                    className="text-xl font-bold border-b-2 border-indigo-500 outline-none bg-transparent text-slate-900 w-64"
+                  />
+                  <button onClick={() => saveMeetingType(meetingTypeVal)} className="text-green-600 hover:text-green-700"><Save className="w-4 h-4" /></button>
+                  <button onClick={() => setEditingType(false)} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+                </div>
+              ) : (
+                <button onClick={() => { setMeetingTypeVal(meeting.meetingType); setEditingType(true); }} className="group flex items-center gap-1.5">
+                  <h1 className="text-2xl font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{meeting.meetingType}</h1>
+                  <Edit2 className="w-3.5 h-3.5 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                </button>
+              )}
               <span className={cn('text-xs px-2.5 py-1 rounded-full font-medium border capitalize', STATUS_COLORS[meeting.status] ?? '')}>
                 {meeting.status}
               </span>
@@ -438,6 +491,14 @@ export default function MeetingDetailClient({
             <Edit2 className="w-4 h-4" />
             Edit
           </Link>
+          <button
+            onClick={deleteMeeting}
+            disabled={deletingMeeting}
+            className="flex items-center gap-2 px-3 py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            <Trash2 className="w-4 h-4" />
+            {deletingMeeting ? 'Deleting…' : 'Delete'}
+          </button>
         </div>
       </div>
 
