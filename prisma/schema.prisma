@@ -180,10 +180,10 @@ model Entity {
   country            String
   legalStructure     String
   registrationNumber String
-  registeredAddress  String
+  registeredAddress  String?
   incorporationDate  DateTime
   financialYearEnd   String       // e.g. "31 December"
-  governingLaw       String
+  governingLaw       String?
   auditor            String?
   regulator          String?
   regulatorUrl       String?      // Direct link to official regulator register page

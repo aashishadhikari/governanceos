@@ -31,19 +31,19 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "docx": "^9.6.1",
-    "drizzle-kit": "^0.31.10",
+    "drizzle-kit": "^0.18.1",
     "drizzle-orm": "^0.45.2",
     "html2canvas": "^1.4.1",
     "jszip": "^3.10.1",
     "lucide-react": "^1.7.0",
-    "next": "16.2.3",
-    "next-auth": "^4.24.13",
+    "next": "^16.2.9",
+    "next-auth": "^4.24.14",
     "pg": "^8.13.3",
-    "prisma": "^7.7.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "recharts": "^3.8.1",
-    "tailwind-merge": "^3.5.0"
+    "tailwind-merge": "^3.5.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -53,6 +53,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
+    "prisma": "^7.7.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

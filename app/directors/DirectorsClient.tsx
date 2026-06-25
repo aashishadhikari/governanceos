@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import { formatDate, getStatusColor, getFlagEmoji } from '@/lib/utils';
@@ -13,8 +13,8 @@ import type { Director, Entity, BoardMeeting } from '@/lib/db/schema';
 // Day / Month / Year dropdowns — much easier to jump to past years than
 // the native <input type="date"> calendar widget.
 const MONTHS = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December',
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
 function DateSelect({
@@ -34,19 +34,23 @@ function DateSelect({
   const min = minYear ?? 1970;
   const max = maxYear ?? now.getFullYear() + 10;
 
-  const parts   = value ? value.split('-') : ['', '', ''];
-  const selYear = parts[0] ?? '';
-  const selMon  = parts[1] ?? '';   // '01'–'12'
-  const selDay  = parts[2] ?? '';   // '01'–'31'
+  const parts = value ? value.split('-') : ['', '', ''];
 
-  const daysInMonth = selYear && selMon
-    ? new Date(Number(selYear), Number(selMon), 0).getDate()
-    : 31;
+  const [year, setYear] = useState(parts[0] ?? '');
+  const [month, setMonth] = useState(parts[1] ?? '');
+  const [day, setDay] = useState(parts[2] ?? '');
+
+  const daysInMonth =
+    year && month
+      ? new Date(Number(year), Number(month), 0).getDate()
+      : 31;
 
   const emit = (y: string, m: string, d: string) => {
-    if (y && m && d) onChange(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`);
-    else if (!y && !m && !d) onChange('');
-    // partial — don't emit yet
+    if (y && m && d) {
+      onChange(
+        `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+      );
+    }
   };
 
   const sel = 'w-full border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white';
@@ -54,8 +58,11 @@ function DateSelect({
   return (
     <div className="grid grid-cols-3 gap-2">
       <select
-        value={selDay}
-        onChange={e => emit(selYear, selMon, e.target.value)}
+        value={day}
+        onChange={e => {
+          setDay(e.target.value);
+          emit(year, month, e.target.value);
+        }}
         required={required}
         className={sel}
       >
@@ -65,8 +72,11 @@ function DateSelect({
         ))}
       </select>
       <select
-        value={selMon}
-        onChange={e => emit(selYear, e.target.value, selDay)}
+        value={month}
+        onChange={e => {
+          setMonth(e.target.value);
+          emit(year, e.target.value, day);
+        }}
         className={sel}
       >
         <option value="">Month</option>
@@ -75,8 +85,11 @@ function DateSelect({
         ))}
       </select>
       <select
-        value={selYear}
-        onChange={e => emit(e.target.value, selMon, selDay)}
+        value={year}
+        onChange={e => {
+          setYear(e.target.value);
+          emit(e.target.value, month, day);
+        }}
         className={sel}
       >
         <option value="">Year</option>
@@ -199,7 +212,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
   const setEdit = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setEditForm(prev => ({ ...prev, [field]: e.target.value }));
   // Direct string setters for DateSelect (no synthetic event needed)
-  const setAddDate  = (field: string) => (val: string) => setAddForm(prev => ({ ...prev, [field]: val }));
+  const setAddDate = (field: string) => (val: string) => setAddForm(prev => ({ ...prev, [field]: val }));
   const setEditDate = (field: string) => (val: string) => setEditForm(prev => ({ ...prev, [field]: val }));
 
   const toYMD = (d: string | Date | null | undefined): string =>
@@ -314,11 +327,13 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
             { label: 'Non-Executive (NED)', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'non-executive').length, color: 'bg-blue-500' },
             { label: 'Independent Directors', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'independent').length, color: 'bg-green-500' },
             { label: 'Company Secretaries', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'secretary').length, color: 'bg-purple-500' },
-            { label: 'Terms Expiring <1yr', value: directorList.filter(d => {
-              if (!d.termExpiry) return false;
-              const days = Math.ceil((new Date(d.termExpiry).getTime() - Date.now()) / 86400000);
-              return days > 0 && days < 365;
-            }).length, color: 'bg-yellow-500' },
+            {
+              label: 'Terms Expiring <1yr', value: directorList.filter(d => {
+                if (!d.termExpiry) return false;
+                const days = Math.ceil((new Date(d.termExpiry).getTime() - Date.now()) / 86400000);
+                return days > 0 && days < 365;
+              }).length, color: 'bg-yellow-500'
+            },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4 flex items-center gap-4">
               <div className={`w-10 h-10 rounded-lg ${s.color} flex items-center justify-center text-white font-bold text-lg shrink-0`}>
@@ -384,11 +399,10 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                               const termExpired = termDays !== null && termDays <= 0;
                               return (
                                 <div key={dir.id} className="flex items-center gap-3 py-1 group">
-                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                    cat === 'independent' ? 'bg-green-100 text-green-700' :
-                                    cat === 'executive' ? 'bg-indigo-100 text-indigo-700' :
-                                    'bg-gray-100 text-gray-600'
-                                  }`}>
+                                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${cat === 'independent' ? 'bg-green-100 text-green-700' :
+                                      cat === 'executive' ? 'bg-indigo-100 text-indigo-700' :
+                                        'bg-gray-100 text-gray-600'
+                                    }`}>
                                     {dir.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -531,7 +545,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                   options={entities.map(e => ({ value: e.id, label: e.name }))} />
               </FormField>
               <FormField label="Appointment Date" required>
-                <DateSelect value={addForm.appointmentDate} onChange={setAddDate('appointmentDate')} required minYear={1990} />
+                <DateSelect value={addForm.appointmentDate} onChange={setAddDate('appointmentDate')} required minYear={1930} />
               </FormField>
               <FormField label="Term Expiry" hint="Leave blank for indefinite">
                 <DateSelect value={addForm.termExpiry} onChange={setAddDate('termExpiry')} minYear={1990} />

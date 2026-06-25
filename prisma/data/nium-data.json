@@ -1,0 +1,565 @@
+{
+  "generatedAt": "2026-06-23T00:00:00.000Z",
+  "entities": [
+    {
+      "id": "ent-001",
+      "name": "Acme Payments Group Ltd",
+      "country": "United Kingdom",
+      "legalStructure": "Private Limited Company",
+      "registrationNumber": "UK12345678",
+      "registeredAddress": "10 Finsbury Square, London, EC2A 1AF, United Kingdom",
+      "incorporationDate": "2012-03-15",
+      "financialYearEnd": "31 December",
+      "governingLaw": "England and Wales",
+      "auditor": "Deloitte LLP",
+      "regulator": "Financial Conduct Authority",
+      "status": "active",
+      "notes": "Ultimate holding company of the Acme Payments Group.",
+      "parentEntityId": null,
+      "purpose": "Group holding and governance",
+      "minCapital": "GBP 1,000,000",
+      "corporateSecretary": "Acme Secretarial Services Ltd",
+      "corporateSecretaryContact": "secretarial@acmepayments.com",
+      "_directors": [
+        {
+          "name": "James Hartley",
+          "role": "Chairman"
+        },
+        {
+          "name": "Sarah Chen",
+          "role": "CEO"
+        },
+        {
+          "name": "Michael O'Brien",
+          "role": "CFO"
+        },
+        {
+          "name": "Priya Nair",
+          "role": "Independent Non-Executive Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "EMI Licence",
+          "licenseNumber": "FCA-EMI-001234",
+          "regulator": "Financial Conduct Authority"
+        }
+      ],
+      "_governance": {
+        "boardSize": "4",
+        "quorum": "3",
+        "auditCommittee": "Yes"
+      }
+    },
+    {
+      "id": "ent-002",
+      "name": "Acme Payments Pte Ltd",
+      "country": "Singapore",
+      "legalStructure": "Private Limited Company",
+      "registrationNumber": "SG202212345A",
+      "registeredAddress": "1 Raffles Quay, #18-01, Singapore 048583",
+      "incorporationDate": "2022-01-10",
+      "financialYearEnd": "31 December",
+      "governingLaw": "Singapore",
+      "auditor": "KPMG LLP",
+      "regulator": "Monetary Authority of Singapore",
+      "status": "active",
+      "notes": "Singapore operating entity. Holds MAS Major Payment Institution licence.",
+      "parentEntityId": "ent-001",
+      "purpose": "Payments and remittance operations in APAC",
+      "minCapital": "SGD 1,500,000",
+      "corporateSecretary": "Tricor Singapore Pte Ltd",
+      "corporateSecretaryContact": "tricor.sg@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "Rajesh Kumar",
+          "role": "Managing Director"
+        },
+        {
+          "name": "Tan Wei Lin",
+          "role": "Independent Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Major Payment Institution Licence",
+          "licenseNumber": "MAS-MPI-2022-0042",
+          "regulator": "Monetary Authority of Singapore"
+        }
+      ],
+      "_governance": {
+        "boardSize": "3",
+        "quorum": "2"
+      }
+    },
+    {
+      "id": "ent-003",
+      "name": "Acme Payments USA Inc",
+      "country": "United States",
+      "legalStructure": "Corporation",
+      "registrationNumber": "US-DE-7654321",
+      "registeredAddress": "251 Little Falls Drive, Wilmington, Delaware 19808, USA",
+      "incorporationDate": "2019-06-01",
+      "financialYearEnd": "31 December",
+      "governingLaw": "Delaware",
+      "auditor": "PricewaterhouseCoopers LLP",
+      "regulator": "FinCEN / State regulators",
+      "status": "active",
+      "notes": "US operating entity. MSB registered with FinCEN. Licensed in 48 states.",
+      "parentEntityId": "ent-001",
+      "purpose": "US domestic payments and cross-border remittance",
+      "minCapital": "USD 5,000,000",
+      "corporateSecretary": "CT Corporation",
+      "corporateSecretaryContact": "us.legal@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "David Ramirez",
+          "role": "President"
+        },
+        {
+          "name": "Linda Zhao",
+          "role": "Independent Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Money Services Business Registration",
+          "licenseNumber": "FINCEN-31000265123456",
+          "regulator": "FinCEN"
+        },
+        {
+          "licenseType": "Money Transmitter Licence",
+          "licenseNumber": "NY-MTL-2019-00887",
+          "regulator": "New York Department of Financial Services"
+        }
+      ],
+      "_governance": {}
+    },
+    {
+      "id": "ent-004",
+      "name": "Acme Payments Australia Pty Ltd",
+      "country": "Australia",
+      "legalStructure": "Proprietary Limited Company",
+      "registrationNumber": "ACN 645 123 456",
+      "registeredAddress": "Level 12, 1 Martin Place, Sydney NSW 2000, Australia",
+      "incorporationDate": "2020-09-01",
+      "financialYearEnd": "30 June",
+      "governingLaw": "Australia",
+      "auditor": "Ernst & Young Australia",
+      "regulator": "Australian Securities and Investments Commission",
+      "status": "active",
+      "notes": "Australian entity holding AFSL and registered with AUSTRAC as a remittance provider.",
+      "parentEntityId": "ent-001",
+      "purpose": "Payments operations in Australia and Pacific",
+      "minCapital": "AUD 1,000,000",
+      "corporateSecretary": "Acme Secretarial AU",
+      "corporateSecretaryContact": "au.legal@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "Claire Morrison",
+          "role": "Country Director"
+        },
+        {
+          "name": "Ben Nguyen",
+          "role": "Independent Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Australian Financial Services Licence",
+          "licenseNumber": "AFSL-520123",
+          "regulator": "ASIC"
+        },
+        {
+          "licenseType": "Remittance Dealer Registration",
+          "licenseNumber": "AUSTRAC-RD-2020-0765",
+          "regulator": "AUSTRAC"
+        }
+      ],
+      "_governance": {}
+    },
+    {
+      "id": "ent-005",
+      "name": "Acme EU Payments B.V.",
+      "country": "Netherlands",
+      "legalStructure": "Besloten Vennootschap",
+      "registrationNumber": "NL-KVK-88123456",
+      "registeredAddress": "Herengracht 420, 1017 BZ Amsterdam, Netherlands",
+      "incorporationDate": "2021-03-01",
+      "financialYearEnd": "31 December",
+      "governingLaw": "Netherlands",
+      "auditor": "Deloitte Accountants B.V.",
+      "regulator": "De Nederlandsche Bank",
+      "status": "active",
+      "notes": "EU passporting entity. Holds EMI licence from DNB with passport rights across EEA.",
+      "parentEntityId": "ent-001",
+      "purpose": "EU and EEA payments operations",
+      "minCapital": "EUR 350,000",
+      "corporateSecretary": "TMF Netherlands B.V.",
+      "corporateSecretaryContact": "nl.legal@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "Erik van der Berg",
+          "role": "Managing Director"
+        },
+        {
+          "name": "Anna Kowalski",
+          "role": "Independent Non-Executive Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Electronic Money Institution Licence",
+          "licenseNumber": "DNB-EMI-2021-0033",
+          "regulator": "De Nederlandsche Bank"
+        }
+      ],
+      "_governance": {
+        "boardSize": "3",
+        "auditCommittee": "No"
+      }
+    },
+    {
+      "id": "ent-006",
+      "name": "Acme Payments India Private Limited",
+      "country": "India",
+      "legalStructure": "Private Limited Company",
+      "registrationNumber": "CIN-U74999MH2021PTC345678",
+      "registeredAddress": "Unit 601, Nirlon Knowledge Park, Goregaon East, Mumbai 400063, India",
+      "incorporationDate": "2021-08-15",
+      "financialYearEnd": "31 March",
+      "governingLaw": "India",
+      "auditor": "BSR & Co. LLP (KPMG India)",
+      "regulator": "Reserve Bank of India",
+      "status": "active",
+      "notes": "India technology and operations hub. RBI authorised entity for cross-border payments.",
+      "parentEntityId": "ent-001",
+      "purpose": "Technology operations and India market payments",
+      "minCapital": "INR 20,000,000",
+      "corporateSecretary": "Sekaran & Associates",
+      "corporateSecretaryContact": "india.legal@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "Anand Krishnamurthy",
+          "role": "Managing Director"
+        },
+        {
+          "name": "Sunita Patel",
+          "role": "Independent Director"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Payment Aggregator Authorisation",
+          "licenseNumber": "RBI-PA-2022-00145",
+          "regulator": "Reserve Bank of India"
+        }
+      ],
+      "_governance": {}
+    },
+    {
+      "id": "ent-007",
+      "name": "Acme Payments UAE LLC",
+      "country": "United Arab Emirates",
+      "legalStructure": "Limited Liability Company",
+      "registrationNumber": "AE-DIFC-0123456",
+      "registeredAddress": "Unit 405, Index Tower, DIFC, Dubai, UAE",
+      "incorporationDate": "2018-11-01",
+      "financialYearEnd": "31 December",
+      "governingLaw": "DIFC",
+      "auditor": null,
+      "regulator": "Dubai Financial Services Authority",
+      "status": "dissolved",
+      "notes": "Entity dissolved in 2024 following regional restructuring. Operations transferred to Singapore entity.",
+      "parentEntityId": "ent-001",
+      "purpose": "MENA region payments (dissolved)",
+      "minCapital": null,
+      "corporateSecretary": null,
+      "corporateSecretaryContact": null,
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        }
+      ],
+      "_licenses": [],
+      "_governance": {}
+    },
+    {
+      "id": "ent-008",
+      "name": "Acme Payments Canada Inc",
+      "country": "Canada",
+      "legalStructure": "Corporation",
+      "registrationNumber": "CA-BC-1234567",
+      "registeredAddress": "Suite 2600, Three Bentall Centre, 595 Burrard St, Vancouver BC V7X 1L3",
+      "incorporationDate": "2023-02-01",
+      "financialYearEnd": "31 December",
+      "governingLaw": "British Columbia",
+      "auditor": "KPMG LLP Canada",
+      "regulator": "Financial Transactions and Reports Analysis Centre of Canada",
+      "status": "active",
+      "notes": "Canadian entity registered as MSB with FINTRAC.",
+      "parentEntityId": "ent-001",
+      "purpose": "Canada domestic and cross-border payments",
+      "minCapital": "CAD 500,000",
+      "corporateSecretary": "Fasken Martineau DuMoulin LLP",
+      "corporateSecretaryContact": "canada.legal@acmepayments.com",
+      "_directors": [
+        {
+          "name": "Sarah Chen",
+          "role": "Director"
+        },
+        {
+          "name": "Marc Tremblay",
+          "role": "Country Head"
+        }
+      ],
+      "_licenses": [
+        {
+          "licenseType": "Money Services Business Registration",
+          "licenseNumber": "FINTRAC-MSB-CA-2023-0412",
+          "regulator": "FINTRAC"
+        }
+      ],
+      "_governance": {}
+    }
+  ],
+  "meetings": [
+    {
+      "id": "bm-ent001-2026-q1",
+      "entityId": "ent-001",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-03-15",
+      "meetingTime": "10:00",
+      "timezone": "Europe/London",
+      "locationType": "hybrid",
+      "location": "10 Finsbury Square, London, EC2A 1AF",
+      "virtualLink": "https://zoom.us/j/acme-board-q1-2026",
+      "agenda": "1. Approval of Q4 2025 financials\n2. Group strategy update\n3. Risk and compliance report\n4. Any other business",
+      "chair": "James Hartley",
+      "quorumRequired": 3,
+      "status": "completed",
+      "minutes": "Minutes approved and filed.",
+      "notes": "Status: Completed",
+      "recurrence": "quarterly",
+      "heldAt": "2026-03-15T10:00:00.000Z",
+      "confirmedBy": "Sarah Chen",
+      "directorsPresent": 4,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Spencer Hanlon",
+      "_circulationDeadline": "2026-03-08",
+      "_materialsDeadline": "2026-03-10",
+      "_minutesDeadline": "2026-03-29"
+    },
+    {
+      "id": "bm-ent001-2026-q2",
+      "entityId": "ent-001",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-06-15",
+      "meetingTime": "10:00",
+      "timezone": "Europe/London",
+      "locationType": "hybrid",
+      "location": "10 Finsbury Square, London, EC2A 1AF",
+      "virtualLink": "https://zoom.us/j/acme-board-q2-2026",
+      "agenda": "1. Q1 2026 financial review\n2. Regulatory updates by jurisdiction\n3. Capital adequacy review\n4. Any other business",
+      "chair": "James Hartley",
+      "quorumRequired": 3,
+      "status": "scheduled",
+      "minutes": null,
+      "notes": "Status: Scheduled",
+      "recurrence": "quarterly",
+      "heldAt": null,
+      "confirmedBy": null,
+      "directorsPresent": null,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Spencer Hanlon",
+      "_circulationDeadline": "2026-06-08",
+      "_materialsDeadline": "2026-06-10",
+      "_minutesDeadline": "2026-06-29"
+    },
+    {
+      "id": "bm-ent002-2026-q1",
+      "entityId": "ent-002",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-02-20",
+      "meetingTime": "14:00",
+      "timezone": "Asia/Singapore",
+      "locationType": "physical",
+      "location": "1 Raffles Quay, #18-01, Singapore 048583",
+      "virtualLink": null,
+      "agenda": "1. Singapore regulatory update\n2. MAS capital requirements review\n3. APAC expansion roadmap\n4. Any other business",
+      "chair": "Rajesh Kumar",
+      "quorumRequired": 2,
+      "status": "completed",
+      "minutes": "Minutes approved and filed with ACRA.",
+      "notes": "Status: Completed",
+      "recurrence": "quarterly",
+      "heldAt": "2026-02-20T14:00:00.000Z",
+      "confirmedBy": "Rajesh Kumar",
+      "directorsPresent": 3,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Pratik Gandhi",
+      "_circulationDeadline": "2026-02-13",
+      "_materialsDeadline": "2026-02-15",
+      "_minutesDeadline": "2026-03-06"
+    },
+    {
+      "id": "bm-ent002-2026-agm",
+      "entityId": "ent-002",
+      "meetingType": "Annual General Meeting",
+      "meetingDate": "2026-04-30",
+      "meetingTime": "10:00",
+      "timezone": "Asia/Singapore",
+      "locationType": "physical",
+      "location": "1 Raffles Quay, #18-01, Singapore 048583",
+      "virtualLink": null,
+      "agenda": "1. Adoption of financial statements\n2. Re-appointment of directors\n3. Re-appointment of auditors\n4. Any other business",
+      "chair": "Rajesh Kumar",
+      "quorumRequired": 2,
+      "status": "completed",
+      "minutes": "AGM minutes filed with ACRA.",
+      "notes": "Status: Completed. Statutory AGM.",
+      "recurrence": "annual",
+      "heldAt": "2026-04-30T10:00:00.000Z",
+      "confirmedBy": "Rajesh Kumar",
+      "directorsPresent": 3,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Pratik Gandhi",
+      "_circulationDeadline": "2026-04-23",
+      "_materialsDeadline": "2026-04-25",
+      "_minutesDeadline": "2026-05-14"
+    },
+    {
+      "id": "bm-ent003-2026-q1",
+      "entityId": "ent-003",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-03-10",
+      "meetingTime": "09:00",
+      "timezone": "America/New_York",
+      "locationType": "virtual",
+      "location": null,
+      "virtualLink": "https://zoom.us/j/acme-usa-q1-2026",
+      "agenda": "1. FinCEN compliance update\n2. State licence renewal status\n3. US market performance\n4. Any other business",
+      "chair": "David Ramirez",
+      "quorumRequired": 2,
+      "status": "completed",
+      "minutes": "Minutes circulated.",
+      "notes": "Status: Completed",
+      "recurrence": "quarterly",
+      "heldAt": "2026-03-10T09:00:00.000Z",
+      "confirmedBy": "David Ramirez",
+      "directorsPresent": 3,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Lia Susin",
+      "_circulationDeadline": "2026-03-03",
+      "_materialsDeadline": "2026-03-05",
+      "_minutesDeadline": "2026-03-24"
+    },
+    {
+      "id": "bm-ent004-2026-q2",
+      "entityId": "ent-004",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-07-15",
+      "meetingTime": "10:00",
+      "timezone": "Australia/Sydney",
+      "locationType": "hybrid",
+      "location": "Level 12, 1 Martin Place, Sydney NSW 2000",
+      "virtualLink": "https://zoom.us/j/acme-au-q2-2026",
+      "agenda": "1. ASIC annual compliance report\n2. AUSTRAC transaction monitoring update\n3. Australia P&L review\n4. Any other business",
+      "chair": "Claire Morrison",
+      "quorumRequired": 2,
+      "status": "scheduled",
+      "minutes": null,
+      "notes": "Status: Scheduled",
+      "recurrence": "quarterly",
+      "heldAt": null,
+      "confirmedBy": null,
+      "directorsPresent": null,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Spencer Hanlon",
+      "_circulationDeadline": "2026-07-08",
+      "_materialsDeadline": "2026-07-10",
+      "_minutesDeadline": "2026-07-29"
+    },
+    {
+      "id": "bm-ent005-2026-q1",
+      "entityId": "ent-005",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-02-10",
+      "meetingTime": "14:00",
+      "timezone": "Europe/Amsterdam",
+      "locationType": "physical",
+      "location": "Herengracht 420, 1017 BZ Amsterdam",
+      "virtualLink": null,
+      "agenda": "1. DNB supervisory update\n2. EEA passport maintenance\n3. EU regulatory capital review\n4. Any other business",
+      "chair": "Erik van der Berg",
+      "quorumRequired": 2,
+      "status": "completed",
+      "minutes": "Minutes approved.",
+      "notes": "Status: Completed",
+      "recurrence": "quarterly",
+      "heldAt": "2026-02-10T14:00:00.000Z",
+      "confirmedBy": "Erik van der Berg",
+      "directorsPresent": 3,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Lia Susin",
+      "_circulationDeadline": "2026-02-03",
+      "_materialsDeadline": "2026-02-05",
+      "_minutesDeadline": "2026-02-24"
+    },
+    {
+      "id": "bm-ent006-2026-q1",
+      "entityId": "ent-006",
+      "meetingType": "Board Meeting",
+      "meetingDate": "2026-04-05",
+      "meetingTime": "11:00",
+      "timezone": "Asia/Kolkata",
+      "locationType": "hybrid",
+      "location": "Unit 601, Nirlon Knowledge Park, Mumbai",
+      "virtualLink": "https://zoom.us/j/acme-india-q1-2026",
+      "agenda": "1. RBI compliance update\n2. India operations review\n3. Tech roadmap update\n4. Any other business",
+      "chair": "Anand Krishnamurthy",
+      "quorumRequired": 2,
+      "status": "completed",
+      "minutes": "Minutes filed with RoC.",
+      "notes": "Status: Completed",
+      "recurrence": "quarterly",
+      "heldAt": "2026-04-05T11:00:00.000Z",
+      "confirmedBy": "Anand Krishnamurthy",
+      "directorsPresent": 3,
+      "minutesUrl": null,
+      "createdBy": "usr-legal-001",
+      "_owner": "Pratik Gandhi",
+      "_circulationDeadline": "2026-03-29",
+      "_materialsDeadline": "2026-03-31",
+      "_minutesDeadline": "2026-04-19"
+    }
+  ]
+}

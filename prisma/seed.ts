@@ -369,6 +369,8 @@ async function main() {
           data: clean({
             id: m.id,
             ...scheduleData,
+            meetingType: m.meetingType || 'Board Meeting',
+            chair: m.chair || 'TBD',
             status: m.status,
             minutes: m.minutes,
             notes: notesParts.length ? notesParts.join('\n') : null,
