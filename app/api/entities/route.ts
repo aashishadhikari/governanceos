@@ -15,7 +15,21 @@ export async function GET(request: Request) {
     const result = await prisma.entity.findMany({
       where,
       orderBy: { name: 'asc' },
-      include: { regulatoryCapital: true },
+      include: {
+        regulatoryCapital: true,
+        parent: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        subsidiaries: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
     });
 
     return NextResponse.json({ data: result, total: result.length });
@@ -32,6 +46,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    // Validate parent entity (if provided)
+    if (body.parentEntityId) {
+      const parentEntity = await prisma.entity.findUnique({
+        where: {
+          id: body.parentEntityId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!parentEntity) {
+        return NextResponse.json(
+          { error: 'Parent entity not found.' },
+          { status: 400 }
+        );
+      }
+    }
+        
     const entity = await prisma.entity.create({
       data: {
         name: body.name,
@@ -47,7 +80,7 @@ export async function POST(request: Request) {
         regulator: body.regulator,
         isLegacyEntity: body.isLegacyEntity || false,
         status: body.status || 'active',
-        notes: body.notes|| null,
+        notes: body.notes || null,
       },
     });
 

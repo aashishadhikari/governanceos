@@ -31,6 +31,7 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
     e.preventDefault();
     setSaving(true);
     try {
+      console.log("Submitting form:", form);
       const res = await fetch('/api/entities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,8 +102,28 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
             </FormField>
 
             <FormField label="Parent Entity">
-              <Select value={form.parentEntityId} onChange={set('parentEntityId')} placeholder="— None (HoldCo) —"
-                options={entities.map(e => ({ value: e.id, label: e.name }))} />
+              <Select
+                value={form.parentEntityId}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  setForm(prev => {
+                    const updated = {
+                      ...prev,
+                      parentEntityId: value,
+                    };
+
+                    console.log("Updated state:", updated);
+
+                    return updated;
+                  });
+                }}
+                placeholder="— None (Top Level Entity) —"
+                options={entities.map(e => ({
+                  value: e.id,
+                  label: e.name,
+                }))}
+              />
             </FormField>
 
             <FormField label="Status">

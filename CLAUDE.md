@@ -6,20 +6,61 @@ Governance, Risk & Compliance (GRC) platform.
 Its sole purpose is to manage legal entities and the governance data 
 associated with them across multiple jurisdictions.
  
-## In Scope (IMPORTANT)
+# In Scope (IMPORTANT)
+## Entity Management
 - Legal Entity Registry
+- Corporate Structure
+- Ownership Structure
+- Share Capital
+- Registered Offices
+
+## Governance
 - Director Registry
+- Board Committees
 - Board Meetings
 - Board Resolutions
+- Governance Documents
+- Organizational Documents
+
+## Regulatory
 - Regulatory Calendar
 - Regulatory Obligations
 - License Management
 - Regulatory Capital
-- Corporate Structure
-- Organizational Documents
+
+## Platform
 - Audit Trail
+- Notifications
+- Dashboard
+- Search
+- Reporting
  
 ## Out of Scope
-Do not introduce enterprise GRC concepts.
+Unless the user explicitly asks for them, never introduce:
+- Enterprise GRC
+- Enterprise Risk Registers
+- Operational Risk
+- Risk Assessments
+- Control Testing
+- Control Libraries
+- Internal Audit Management
+- Policy Management
+- Vendor Risk
+- Third Party Risk
+- Cybersecurity Compliance
+- ISO 27001 modules
+- SOC2 modules
+- NIST modules
+- Incident Management
+- Business Continuity Management
+- Vulnerability Management
+- Asset Management
+- Privacy Management
+- ESG Management
  
-NOTE Stay out of scope unless the user explicitly requests them by name.
+
+# IMPORTANT NOTE
+Stay out of scope unless the user explicitly requests them by name.
+This project is frequently confused with GRC software.
+Do not assume this project is a Governance, Risk & Compliance platform.
+Always treat it as Corporate Entity Management software unless explicitly instructed otherwise.
