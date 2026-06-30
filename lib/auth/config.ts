@@ -1,15 +1,25 @@
 // EntityOS — NextAuth v4 Configuration
-// Provider: Okta OIDC
-// Role resolution: Okta group → EntityOS role mapping
+// Provider: Okta OIDC >> removed
+// Role resolution: Okta group → EntityOS role mapping >> changed to get credentials from db
 
 import type { NextAuthOptions, DefaultSession } from 'next-auth';
-import OktaProvider from 'next-auth/providers/okta';
-import { getUserByEmail, updateUser } from '@/lib/db/users';
-import type { UserRole } from '@/lib/db/users';
+import CredentialsProvider from 'next-auth/providers/credentials';
+import bcrypt from 'bcrypt';
+import prisma from '@/lib/prisma';
+import type { UserRole } from '@prisma/client';
+
+
 
 // ─── Type augmentation ────────────────────────────────────────────────────────
 
 declare module 'next-auth' {
+  interface User {
+    id: string;
+    role: UserRole;
+    department: string | null;
+    title: string | null;
+  }
+
   interface Session {
     user: {
       id: string;
@@ -29,39 +39,104 @@ declare module 'next-auth/jwt' {
   }
 }
 
-// ─── Okta group → EntityOS role mapping ──────────────────────────────────────
-
-const OKTA_GROUP_ROLE_MAP: Record<string, UserRole> = {
-  'EntityOS-SuperAdmin': 'super_admin',
-  'EntityOS-Admin':      'admin',
-  'EntityOS-Legal':      'legal',
-  'EntityOS-Finance':    'finance',
-  'EntityOS-Viewer':     'viewer',
+// ─── Okta group → EntityOS role mapping ────── >> commented
+/* const OKTA_GROUP_ROLE_MAP: Record<string, UserRole> = {
+//   'EntityOS-SuperAdmin': 'super_admin',
+//   'EntityOS-Admin':      'admin',
+//   'EntityOS-Legal':      'legal',
+//   'EntityOS-Finance':    'finance',
+//   'EntityOS-Viewer':     'viewer',
 };
+*/
 
 // Priority order — highest privilege wins when a user is in multiple groups
-const ROLE_PRIORITY: UserRole[] = ['super_admin', 'admin', 'legal', 'finance', 'viewer'];
+/* const ROLE_PRIORITY: UserRole[] = ['super_admin', 'admin', 'legal', 'finance', 'viewer'];
 
-function resolveRoleFromGroups(groups: string[]): UserRole | null {
-  const mapped = groups
-    .map(g => OKTA_GROUP_ROLE_MAP[g])
-    .filter((r): r is UserRole => !!r);
+// function resolveRoleFromGroups(groups: string[]): UserRole | null {
+//   const mapped = groups
+//     .map(g => OKTA_GROUP_ROLE_MAP[g])
+//     .filter((r): r is UserRole => !!r);
 
   // Return the highest-priority role found
-  return ROLE_PRIORITY.find(r => mapped.includes(r)) ?? null;
-}
+//   return ROLE_PRIORITY.find(r => mapped.includes(r)) ?? null;
+} */
 
 // ─── Auth options ─────────────────────────────────────────────────────────────
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    OktaProvider({
+    /*OktaProvider({
       clientId:     process.env.OKTA_CLIENT_ID!,
       clientSecret: process.env.OKTA_CLIENT_SECRET!,
       issuer:       process.env.OKTA_ISSUER!,
       // Request groups claim from Okta (must be configured in Okta app to send groups)
       authorization: { params: { scope: 'openid profile email groups' } },
     }),
+    */
+    CredentialsProvider({
+      name: 'Credentials',
+
+      credentials: {
+        email: {
+          label: 'Email',
+          type: 'email',
+        },
+
+        password: {
+          label: 'Password',
+          type: 'password',
+        },
+      },
+
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
+
+        const user = await prisma.user.findUnique({
+          where: {
+            email: credentials.email,
+          },
+        });
+
+        if (!user) {
+          return null;
+        }
+
+        if (!user.isActive) {
+          return null;
+        }
+
+        const passwordMatches = await bcrypt.compare(
+          credentials.password,
+          user.passwordHash
+        );
+
+        if (!passwordMatches) {
+          return null;
+        }
+
+        await prisma.user.update({
+          where: {
+            id: user.id,
+          },
+          data: {
+            lastLoginAt: new Date(),
+            failedLoginAttempts: 0,
+          },
+        });
+
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          title: user.title,
+        };
+      },
+    }),
+
   ],
 
   session: {
@@ -71,9 +146,10 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: '/login',
-    error:  '/login',
+    error: '/login',
   },
 
+  /* removed Okta group mapping and session callbacks; now using database credentials only
   callbacks: {
     async jwt({ token, user, account, profile }) {
       // Only runs on first sign-in (account + profile are populated)
@@ -88,9 +164,9 @@ export const authOptions: NextAuthOptions = {
         const appUser = email ? getUserByEmail(email) : undefined;
 
         if (appUser) {
-          token.userId     = appUser.id;
+          token.userId = appUser.id;
           token.department = appUser.department;
-          token.title      = appUser.title;
+          token.title = appUser.title;
           updateUser(appUser.id, { lastLoginAt: new Date().toISOString() });
         }
 
@@ -102,15 +178,39 @@ export const authOptions: NextAuthOptions = {
 
     async session({ session, token }) {
       if (session.user) {
-        session.user.id         = token.userId ?? token.sub ?? '';
-        session.user.role       = token.role ?? 'viewer';
+        session.user.id = token.userId ?? token.sub ?? '';
+        session.user.role = token.role ?? 'viewer';
         session.user.department = token.department ?? '';
-        session.user.title      = token.title ?? '';
+        session.user.title = token.title ?? '';
       }
+      return session;
+    },
+  },
+  */
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.userId = user.id;
+        token.role = user.role;
+        token.department = user.department ?? '';
+        token.title = user.title ?? '';
+      }
+
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.userId ?? '';
+        session.user.role = (token.role as UserRole) ?? 'viewer';
+        session.user.department = token.department ?? '';
+        session.user.title = token.title ?? '';
+      }
+
       return session;
     },
   },
 
   secret: process.env.NEXTAUTH_SECRET,
-  debug:  process.env.NODE_ENV === 'development',
+  debug: process.env.NODE_ENV === 'development',
 };

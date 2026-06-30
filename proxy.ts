@@ -1,14 +1,14 @@
 // EntityOS — Route protection proxy (Next.js 16+)
-// Enforces Okta auth when AUTH_ENABLED=true.
+// Enforces Okta auth when AUTH_ENABLED=true. >> removed
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true';
+//const AUTH_ENABLED = process.env.AUTH_ENABLED === 'true';
 
 export async function proxy(req: NextRequest) {
-  if (!AUTH_ENABLED) return NextResponse.next();
+  //if (!AUTH_ENABLED) return NextResponse.next();
 
   const token = await getToken({
     req,
@@ -26,6 +26,6 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico|public).*)',
+    '/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)', //removed 'public' from matcher which allow public folder access
   ],
 };

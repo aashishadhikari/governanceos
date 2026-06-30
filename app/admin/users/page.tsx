@@ -13,26 +13,26 @@ import { formatDate } from '@/lib/utils';
 
 const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: 'super_admin', label: 'Super Admin — Full system access + user management' },
-  { value: 'admin',       label: 'Admin — All modules, no user management' },
-  { value: 'legal',       label: 'Legal — Entities, Directors, Compliance, Licenses' },
-  { value: 'finance',     label: 'Finance — Entities, Compliance, Regulatory Capital' },
-  { value: 'viewer',      label: 'Viewer — Read-only access' },
+  { value: 'admin', label: 'Admin — All modules, no user management' },
+  { value: 'legal', label: 'Legal — Entities, Directors, Compliance, Licenses' },
+  { value: 'finance', label: 'Finance — Entities, Compliance, Regulatory Capital' },
+  { value: 'viewer', label: 'Viewer — Read-only access' },
 ];
 
 const ROLE_COLORS: Record<UserRole, string> = {
   super_admin: 'bg-purple-100 text-purple-700 border-purple-200',
-  admin:       'bg-indigo-100 text-indigo-700 border-indigo-200',
-  legal:       'bg-blue-100 text-blue-700 border-blue-200',
-  finance:     'bg-green-100 text-green-700 border-green-200',
-  viewer:      'bg-gray-100 text-gray-600 border-gray-200',
+  admin: 'bg-indigo-100 text-indigo-700 border-indigo-200',
+  legal: 'bg-blue-100 text-blue-700 border-blue-200',
+  finance: 'bg-green-100 text-green-700 border-green-200',
+  viewer: 'bg-gray-100 text-gray-600 border-gray-200',
 };
 
 const ROLE_ICON: Record<UserRole, React.FC<{ className?: string }>> = {
   super_admin: ShieldCheck,
-  admin:       ShieldCheck,
-  legal:       Users,
-  finance:     Users,
-  viewer:      Eye,
+  admin: ShieldCheck,
+  legal: Users,
+  finance: Users,
+  viewer: Eye,
 };
 
 const DEPT_OPTIONS = [
@@ -40,7 +40,27 @@ const DEPT_OPTIONS = [
   'Technology', 'Risk', 'Product', 'HR',
 ].map(d => ({ value: d, label: d }));
 
-const BLANK_FORM = { name: '', email: '', role: 'viewer' as UserRole, department: '', title: '' };
+const BLANK_ADD_FORM = {
+  name: '',
+  email: '',
+  role: 'viewer' as UserRole,
+  department: '',
+  title: '',
+
+  password: '',
+  confirmPassword: '',
+
+  isActive: true,
+  mustChangePassword: true,
+};
+
+const BLANK_EDIT_FORM = {
+  name: '',
+  email: '',
+  role: 'viewer' as UserRole,
+  department: '',
+  title: '',
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -53,14 +73,19 @@ export default function UserManagementPage() {
 
   // Add modal
   const [addOpen, setAddOpen] = useState(false);
-  const [addForm, setAddForm] = useState(BLANK_FORM);
+  const [addForm, setAddForm] = useState(BLANK_ADD_FORM);
   const [addSaving, setAddSaving] = useState(false);
   const [addSaved, setAddSaved] = useState(false);
+
+  const [addError, setAddError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
 
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
   const [editUser, setEditUser] = useState<AppUser | null>(null);
-  const [editForm, setEditForm] = useState(BLANK_FORM);
+  const [editForm, setEditForm] = useState(BLANK_EDIT_FORM);
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
 
@@ -88,24 +113,76 @@ export default function UserManagementPage() {
 
   const openEdit = (user: AppUser) => {
     setEditUser(user);
-    setEditForm({ name: user.name, email: user.email, role: user.role, department: user.department, title: user.title });
+
+    setEditForm({
+      ...BLANK_EDIT_FORM,
+
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      department: user.department,
+      title: user.title,
+    });
+
     setEditSaved(false);
     setEditOpen(true);
   };
 
+  const validatePassword = (password: string) => {
+    if (password.length < 8) {
+      return 'Password must be at least 8 characters long.';
+    }
+
+    if (!/[A-Z]/.test(password)) {
+      return 'Password must contain at least one uppercase letter.';
+    }
+
+    if (!/[a-z]/.test(password)) {
+      return 'Password must contain at least one lowercase letter.';
+    }
+
+    if (!/[0-9]/.test(password)) {
+      return 'Password must contain at least one number.';
+    }
+
+    return '';
+  };
+
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
+    const passwordError = validatePassword(addForm.password);
+
+    if (passwordError) {
+      setAddError(passwordError);
+      return;
+    }
+
+    if (addForm.password !== addForm.confirmPassword) {
+      setAddError('Passwords do not match.');
+      return;
+    }
+
+    // Clear any previous error
+    setAddError('');
+
     setAddSaving(true);
+
     const res = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(addForm),
     });
+
     if (res.ok) {
       await fetchUsers();
       setAddSaving(false);
       setAddSaved(true);
-      setTimeout(() => { setAddSaved(false); setAddOpen(false); setAddForm(BLANK_FORM); }, 1500);
+
+      setTimeout(() => {
+        setAddSaved(false);
+        setAddOpen(false);
+        setAddForm(BLANK_ADD_FORM);
+      }, 1500);
     } else {
       setAddSaving(false);
     }
@@ -213,10 +290,10 @@ export default function UserManagementPage() {
           </button>
           <div className="ml-auto">
             <button
-              onClick={() => { setAddSaved(false); setAddForm(BLANK_FORM); setAddOpen(true); }}
+              onClick={() => { setAddSaved(false); setAddForm(BLANK_ADD_FORM); setAddOpen(true); }}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
-              <Plus className="w-4 h-4" /> Invite User
+              <Plus className="w-4 h-4" /> Create User
             </button>
           </div>
         </div>
@@ -232,7 +309,7 @@ export default function UserManagementPage() {
                   <th className="text-left px-6 py-3 font-medium">User</th>
                   <th className="text-left px-6 py-3 font-medium">Role</th>
                   <th className="text-left px-6 py-3 font-medium">Department</th>
-                  <th className="text-left px-6 py-3 font-medium">Okta Status</th>
+                  <th className="text-left px-6 py-3 font-medium">Account</th>
                   <th className="text-left px-6 py-3 font-medium">Last Login</th>
                   <th className="text-left px-6 py-3 font-medium">Status</th>
                   <th className="px-6 py-3" />
@@ -246,9 +323,8 @@ export default function UserManagementPage() {
                     <tr key={user.id} className={`hover:bg-gray-50 transition-colors group ${!user.isActive ? 'opacity-50' : ''}`}>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                            user.isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
-                          }`}>
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${user.isActive ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'
+                            }`}>
                             {initials}
                           </div>
                           <div>
@@ -270,10 +346,14 @@ export default function UserManagementPage() {
                         <p className="text-xs text-gray-400">{user.title || '—'}</p>
                       </td>
                       <td className="px-6 py-4">
-                        {user.oktaId ? (
-                          <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Provisioned</span>
+                        {user.isActive ? (
+                          <span className="text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                            Active
+                          </span>
                         ) : (
-                          <span className="text-xs font-medium text-yellow-700 bg-yellow-50 px-2 py-0.5 rounded-full">Pending</span>
+                          <span className="text-xs font-medium text-red-700 bg-red-50 px-2 py-0.5 rounded-full">
+                            Inactive
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 text-xs text-gray-400">
@@ -351,12 +431,12 @@ export default function UserManagementPage() {
       </div>
 
       {/* ── Add User Modal ── */}
-      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Invite User" subtitle="Add a new user to EntityOS" size="lg">
+      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Create User" subtitle="Create a New User" size="lg">
         {addSaved ? (
           <div className="flex flex-col items-center py-10 gap-3">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">✓</div>
-            <p className="font-semibold text-green-800">User invited successfully</p>
-            <p className="text-sm text-gray-500">They&apos;ll receive an Okta invitation email to activate their account.</p>
+            <p className="font-semibold text-green-800">User created successfully</p>
+            <p className="text-sm text-gray-500">The user can now sign in using their email and password.</p>
           </div>
         ) : (
           <form onSubmit={handleAdd} className="space-y-4">
@@ -365,8 +445,34 @@ export default function UserManagementPage() {
                 <Input placeholder="Jane Smith" value={addForm.name} onChange={setAdd('name')} required />
               </FormField>
               <FormField label="Work Email" required className="col-span-2">
-                <Input type="email" placeholder="jane.smith@governanceos.app" value={addForm.email} onChange={setAdd('email')} required />
+                <Input type="email" placeholder="jane.smith@emaildomain.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
+              <FormField label="Temporary Password" required>
+
+                <Input
+                  type="password"
+                  value={addForm.password}
+                  onChange={setAdd("password")}
+                  required
+                />
+              </FormField>
+
+              <FormField label="Confirm Password" required>
+                <Input
+                  type="password"
+                  value={addForm.confirmPassword}
+                  onChange={setAdd("confirmPassword")}
+                  required
+                />
+              </FormField>
+              {addError && (
+                <p className="text-sm text-red-600 mt-1">
+                  {addError}
+                </p>
+              )}
+              <p className="text-xs text-gray-500 mt-1">
+                Minimum 8 characters with at least one uppercase letter, one lowercase letter and one number.
+              </p>
               <FormField label="Role" required className="col-span-2">
                 <Select value={addForm.role} onChange={setAdd('role')} options={ROLE_OPTIONS} />
               </FormField>
@@ -390,7 +496,7 @@ export default function UserManagementPage() {
 
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
               <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={addSaving}>Send Invitation</Button>
+              <Button type="submit" loading={addSaving}>Create User</Button>
             </div>
           </form>
         )}
@@ -432,6 +538,38 @@ export default function UserManagementPage() {
               <FormField label="Job Title">
                 <Input value={editForm.title} onChange={setEdit('title')} />
               </FormField>
+            </div>
+            <div className="col-span-2 flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={addForm.isActive}
+                onChange={(e) =>
+                  setAddForm((prev) => ({
+                    ...prev,
+                    isActive: e.target.checked,
+                  }))
+                }
+              />
+
+              <label className="text-sm">
+                Active User
+              </label>
+            </div>
+            <div className="col-span-2 flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={addForm.mustChangePassword}
+                onChange={(e) =>
+                  setAddForm((prev) => ({
+                    ...prev,
+                    mustChangePassword: e.target.checked,
+                  }))
+                }
+              />
+
+              <label className="text-sm">
+                Require password change on first login
+              </label>
             </div>
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
               <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>Cancel</Button>

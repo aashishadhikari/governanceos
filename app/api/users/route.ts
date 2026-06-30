@@ -5,6 +5,28 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
 import type { UserRole } from '@prisma/client';
+import bcrypt from 'bcrypt';
+
+
+function validatePassword(password: string): string | null {
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters long.';
+  }
+
+  if (!/[A-Z]/.test(password)) {
+    return 'Password must contain at least one uppercase letter.';
+  }
+
+  if (!/[a-z]/.test(password)) {
+    return 'Password must contain at least one lowercase letter.';
+  }
+
+  if (!/[0-9]/.test(password)) {
+    return 'Password must contain at least one number.';
+  }
+
+  return null;
+}
 
 export async function GET() {
   try {
@@ -37,25 +59,56 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, email, role, department, title } = body as {
-      name: string; email: string; role: UserRole; department: string; title: string;
+    const {
+      name,
+      email,
+      role,
+      department,
+      title,
+      password,
+      isActive,
+      mustChangePassword,
+    } = body as {
+      name: string;
+      email: string;
+      role: UserRole;
+      department: string;
+      title: string;
+      password: string;
+      isActive: boolean;
+      mustChangePassword: boolean;
     };
 
-    if (!name || !email || !role) {
+    if (!name || !email || !role || !password) {
       return NextResponse.json(
-        { error: 'name, email, and role are required' },
+        { error: 'Name, Email, Role, and Password are required' },
         { status: 400 }
       );
     }
+    const passwordError = validatePassword(password);
 
+    if (passwordError) {
+      return NextResponse.json(
+        { error: passwordError },
+        { status: 400 }
+      );
+    }
+    const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
         name,
         email,
+        passwordHash,
+
         role,
+
         department: department ?? '',
         title: title ?? '',
-        isActive: true,
+
+        isActive: isActive ?? true,
+        mustChangePassword: mustChangePassword ?? true,
+
+        failedLoginAttempts: 0,
       },
     });
 
