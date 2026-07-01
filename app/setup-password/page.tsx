@@ -2,41 +2,52 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function SetupPasswordPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const token = searchParams.get('token');
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
 
   const handleSubmit = async (
-  e: React.FormEvent<HTMLFormElement>
-) => {
-  e.preventDefault();
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
 
-  const response = await fetch('/api/setup-password', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      token,
-      password,
-      confirmPassword,
-    }),
-  });
+    setSaving(true);
 
-  const result = await response.json();
+    try {
+      const response = await fetch('/api/setup-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          password,
+          confirmPassword,
+        }),
+      });
 
-  if (!response.ok) {
-    alert(result.error);
-    return;
-  }
+      const result = await response.json();
 
-  alert('Password setup successful.');
-};
+      if (!response.ok) {
+        alert(result.error);
+        return;
+      }
+
+      router.push('/login?activated=true');
+
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-100">
       <div className="w-full max-w-md rounded-xl bg-white shadow-lg p-8">
@@ -84,9 +95,10 @@ export default function SetupPasswordPage() {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-indigo-600 py-3 text-white font-semibold"
+            disabled={saving}
+            className="w-full rounded-lg bg-indigo-600 py-3 text-white font-semibold disabled:opacity-50"
           >
-            Set Password
+            {saving ? 'Setting Password...' : 'Set Password'}
           </button>
 
         </form>

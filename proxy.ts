@@ -26,6 +26,10 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|api/auth|_next/static|_next/image|favicon.ico).*)', //removed 'public' from matcher which allow public folder access
+    '/((?!login|setup-password|api/auth|api/setup-password|_next/static|_next/image|favicon.ico).*)',//removed 'public' from matcher which allow public folder access
   ],
 };
+
+
+
+

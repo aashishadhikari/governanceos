@@ -56,11 +56,11 @@ export default function LoginPage() {
                 {/* Header */}
                 <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 px-8 py-8 text-white">
                     <h1 className="text-2xl font-bold">
-                        Corporate Entities Governance Platform
+                        ISEND Corporate Entities Governance Platform
                     </h1>
 
                     <p className="text-indigo-100 mt-2 text-sm">
-                        Sign in using your Corporate Entities Governance Platform account.
+                        Sign in using your iSend Corporate Entities Governance Platform account.
                     </p>
                 </div>
 

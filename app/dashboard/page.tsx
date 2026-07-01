@@ -85,8 +85,8 @@ export default async function DashboardPage() {
   return (
     <div>
       <Header
-        title="Global Control Tower"
-        subtitle={`GovernanceOS — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`}
+        title="ISEND Global Control Tower"
+        subtitle={`Corporate Entities Governance Platform — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}`}
       />
       <div className="px-8 py-6 space-y-6">
 

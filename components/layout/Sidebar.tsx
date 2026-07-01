@@ -16,42 +16,42 @@ import type { UserRole } from '@/lib/db/users';
 import { ROLE_LABELS } from '@/lib/db/users';
 
 const ALL_NAV: { href: string; label: string; icon: React.ElementType; module: string; badge?: boolean; indent?: boolean; exact?: boolean }[] = [
-  { href: '/dashboard',      label: 'Dashboard',           icon: LayoutDashboard, module: 'entities' },
-  { href: '/entities',       label: 'Entities',             icon: Building2,       module: 'entities' },
-  { href: '/org-chart',      label: 'Org Chart',            icon: GitBranch,       module: 'entities' },
-  { href: '/directors',      label: 'Directors',            icon: Users,           module: 'directors' },
-  { href: '/board-meetings', label: 'Board Meetings',       icon: ClipboardList,   module: 'meetings' },
-  { href: '/calendar',       label: 'Key Dates',            icon: Calendar,        module: 'compliance' },
-  { href: '/compliance',              label: 'Compliance & Finance', icon: Calendar,        module: 'compliance', exact: true },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'entities' },
+  { href: '/entities', label: 'Entities', icon: Building2, module: 'entities' },
+  { href: '/org-chart', label: 'Org Chart', icon: GitBranch, module: 'entities' },
+  { href: '/directors', label: 'Directors', icon: Users, module: 'directors' },
+  { href: '/board-meetings', label: 'Board Meetings', icon: ClipboardList, module: 'meetings' },
+  { href: '/calendar', label: 'Key Dates', icon: Calendar, module: 'compliance' },
+  { href: '/compliance', label: 'Compliance & Finance', icon: Calendar, module: 'compliance', exact: true },
   { href: '/compliance/regulatory-calendar', label: 'Regulatory Calendar', icon: ClipboardList, module: 'compliance', indent: true },
-  { href: '/licenses',       label: 'Licenses',             icon: Shield,          module: 'licenses' },
-  { href: '/capital',        label: 'Regulatory Capital',   icon: TrendingUp,      module: 'capital' },
-  { href: '/alerts',         label: 'Alerts',               icon: Bell,            module: 'alerts',    badge: true },
-  { href: '/documents',      label: 'Document Vault',       icon: FileText,        module: 'documents' },
+  { href: '/licenses', label: 'Licenses', icon: Shield, module: 'licenses' },
+  { href: '/capital', label: 'Regulatory Capital', icon: TrendingUp, module: 'capital' },
+  { href: '/alerts', label: 'Alerts', icon: Bell, module: 'alerts', badge: true },
+  { href: '/documents', label: 'Document Vault', icon: FileText, module: 'documents' },
 ];
 
 const ADMIN_NAV = [
-  { href: '/admin/users',       label: 'User Management', icon: UserCog,           module: 'admin' },
-  { href: '/admin/submissions', label: 'Submissions',     icon: MessageSquarePlus, module: 'admin' },
+  { href: '/admin/users', label: 'User Management', icon: UserCog, module: 'admin' },
+  { href: '/admin/submissions', label: 'Submissions', icon: MessageSquarePlus, module: 'admin' },
 ];
 
 // Permissions per role (matches ROLE_PERMISSIONS in users.ts — duplicated to avoid a server import in this client component)
 const PERMISSIONS: Record<UserRole, string[]> = {
   super_admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
-  admin:       ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
-  legal:       ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'alerts', 'documents'],
-  finance:     ['entities', 'compliance', 'capital', 'alerts'],
-  viewer:      ['entities', 'directors', 'compliance', 'licenses'],
+  admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
+  legal: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'alerts', 'documents'],
+  finance: ['entities', 'compliance', 'capital', 'alerts'],
+  viewer: ['entities', 'directors', 'compliance', 'licenses'],
 };
 
-const ROLE_BADGE: Record<UserRole, string> = {
+const ROLE_BADGE: Record<UserRole | 'compliance' | 'mlro', string> = {
   super_admin: 'bg-purple-500/20 text-purple-200',
-  admin:       'bg-indigo-500/20 text-indigo-200',
-  legal:       'bg-blue-500/20 text-blue-200',
-  compliance:  'bg-teal-500/20 text-teal-200',
-  mlro:        'bg-orange-500/20 text-orange-200',
-  finance:     'bg-green-500/20 text-green-200',
-  viewer:      'bg-slate-500/20 text-slate-300',
+  admin: 'bg-indigo-500/20 text-indigo-200',
+  legal: 'bg-blue-500/20 text-blue-200',
+  compliance: 'bg-teal-500/20 text-teal-200',
+  mlro: 'bg-orange-500/20 text-orange-200',
+  finance: 'bg-green-500/20 text-green-200',
+  viewer: 'bg-slate-500/20 text-slate-300',
 };
 
 export default function Sidebar() {
@@ -59,12 +59,9 @@ export default function Sidebar() {
   const { data: session } = useSession();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // When auth is disabled, fall back to the seed super_admin so the UI is fully functional
-  const AUTH_DISABLED = process.env.NEXT_PUBLIC_AUTH_ENABLED !== 'true';
-  const fallbackUser = { name: 'Alex Chen', email: 'admin@governanceos.app', role: 'super_admin' as UserRole, department: 'Executive', title: 'CEO' };
-
-  const user = session?.user ?? (AUTH_DISABLED ? fallbackUser : null);
-  const role = (user?.role ?? 'super_admin') as UserRole;
+  const user = session?.user ?? null;
+  const role = (user?.role ?? 'viewer') as UserRole;
+  //const role = (user?.role ?? 'super_admin') as UserRole;
   const perms = PERMISSIONS[role] ?? PERMISSIONS.super_admin;
 
   const visibleNav = ALL_NAV.filter(item => perms.includes(item.module));
@@ -81,8 +78,8 @@ export default function Sidebar() {
             <Globe className="w-5 h-5 text-white" />
           </div>
           <div>
-            <p className="font-semibold text-white text-sm leading-tight">EntityOS</p>
-            <p className="text-slate-400 text-xs">GovernanceOS</p>
+            <p className="font-semibold text-white text-sm leading-tight">ISEND</p>
+            <p className="text-slate-400 text-xs">Entity Governance</p>
           </div>
         </div>
       </div>
@@ -152,7 +149,7 @@ export default function Sidebar() {
             {initials}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="text-sm font-medium text-white truncate">{user?.name ?? 'Loading…'}</p>
+            <p className="text-sm font-medium text-white truncate">{user?.name ?? 'Unknown User'}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ROLE_BADGE[role]}`}>
                 {ROLE_LABELS[role]}
@@ -171,12 +168,11 @@ export default function Sidebar() {
               )}
             </div>
             <button
-              onClick={() => AUTH_DISABLED ? undefined : signOut({ callbackUrl: '/login' })}
-              className={`w-full flex items-center gap-2 px-4 py-3 text-sm transition-colors ${AUTH_DISABLED ? 'text-slate-500 cursor-default' : 'text-red-400 hover:bg-slate-700 hover:text-red-300'}`}
-              title={AUTH_DISABLED ? 'Auth disabled — enable Okta to sign out' : undefined}
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="w-full flex items-center gap-2 px-4 py-3 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              {AUTH_DISABLED ? 'Auth disabled' : 'Sign out'}
+              Sign Out
             </button>
           </div>
         )}
