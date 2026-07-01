@@ -5,28 +5,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
 import type { UserRole } from '@prisma/client';
-import bcrypt from 'bcrypt';
+import { createInvitation } from '@/lib/auth/user-token';
 
-
-function validatePassword(password: string): string | null {
-  if (password.length < 8) {
-    return 'Password must be at least 8 characters long.';
-  }
-
-  if (!/[A-Z]/.test(password)) {
-    return 'Password must contain at least one uppercase letter.';
-  }
-
-  if (!/[a-z]/.test(password)) {
-    return 'Password must contain at least one lowercase letter.';
-  }
-
-  if (!/[0-9]/.test(password)) {
-    return 'Password must contain at least one number.';
-  }
-
-  return null;
-}
 
 export async function GET() {
   try {
@@ -65,40 +45,30 @@ export async function POST(req: NextRequest) {
       role,
       department,
       title,
-      password,
       isActive,
-      mustChangePassword,
     } = body as {
       name: string;
       email: string;
       role: UserRole;
       department: string;
       title: string;
-      password: string;
       isActive: boolean;
-      mustChangePassword: boolean;
     };
 
-    if (!name || !email || !role || !password) {
+    if (!name || !email || !role) {
       return NextResponse.json(
-        { error: 'Name, Email, Role, and Password are required' },
+        { error: 'Name, Email, and Role are required' },
         { status: 400 }
       );
     }
-    const passwordError = validatePassword(password);
 
-    if (passwordError) {
-      return NextResponse.json(
-        { error: passwordError },
-        { status: 400 }
-      );
-    }
-    const passwordHash = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        passwordHash,
+
+        // No password yet - user will set it using the invitation link
+        passwordHash: null,
 
         role,
 
@@ -106,11 +76,26 @@ export async function POST(req: NextRequest) {
         title: title ?? '',
 
         isActive: isActive ?? true,
-        mustChangePassword: mustChangePassword ?? true,
+
+        // Keep this for now. We'll remove it after the invitation flow is complete.
+        mustChangePassword: true,
 
         failedLoginAttempts: 0,
       },
     });
+
+    // Create an invitation token for the user
+    const invitation = await createInvitation(user.id);
+    const invitationUrl =
+      `http://localhost:3000/setup-password?token=${invitation.token}`;
+
+    console.log('==========================================');
+    console.log('User Invitation');
+    console.log(invitationUrl);
+    console.log('==========================================');
+
+
+
 
     const meta = requestMeta(req);
     await writeAuditLog({

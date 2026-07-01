@@ -88,6 +88,12 @@ enum UserRole {
   viewer
 }
 
+enum UserTokenType {
+  INVITATION
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -154,26 +160,49 @@ model User {
   emailVerified DateTime?
   image         String?
 
-  passwordHash  String
+  passwordHash String?
 
-  role        UserRole  @default(viewer)
-  department  String?
-  title       String?
-  
-  isActive    Boolean   @default(true)
-  mustChangePassword  Boolean @default(true)
-  
-  lastLoginAt DateTime?
-  failedLoginAttempts  Int @default(0)
-  
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  role       UserRole @default(viewer)
+  department String?
+  title      String?
+
+  isActive           Boolean @default(true)
+  mustChangePassword Boolean @default(true)
+
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   accounts  Account[]
   sessions  Session[]
   auditLogs AuditLog[]
+  tokens    UserToken[]
 
   @@map("users")
+}
+
+model UserToken {
+  id String @id @default(cuid())
+
+  userId String
+
+  type UserTokenType
+
+  hashedToken String
+
+  expiresAt DateTime
+
+  usedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([hashedToken])
+  @@index([type])
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -188,18 +217,18 @@ model Entity {
   registrationNumber String
   registeredAddress  String?
   incorporationDate  DateTime
-  financialYearEnd   String       // e.g. "31 December"
+  financialYearEnd   String // e.g. "31 December"
   governingLaw       String?
   auditor            String?
   regulator          String?
-  regulatorUrl       String?      // Direct link to official regulator register page
-  formerName         String?      // Previous legal name before rebranding
-  purpose            String?      // holding | licensing | employing | operating
+  regulatorUrl       String? // Direct link to official regulator register page
+  formerName         String? // Previous legal name before rebranding
+  purpose            String? // holding | licensing | employing | operating
   isLegacyEntity     Boolean      @default(false) @map("isIxarisEntity")
   status             EntityStatus @default(active)
-  healthScore        Int?         // 0-100, computed by alert engine
+  healthScore        Int? // 0-100, computed by alert engine
   notes              String?
-  torSettings        Json?        // Persisted ToR configuration per entity
+  torSettings        Json? // Persisted ToR configuration per entity
 
   // Self-referential parent/subsidiary tree
   parentEntityId String?
@@ -242,12 +271,12 @@ model Director {
   notes           String?
 
   // Enhanced fields
-  responsibilities String?   // AML Officer, Chair, etc. (comma-separated)
-  remuneration     String?   // Restricted field — finance/admin only
-  guideUrl         String?   // Director guide PDF for this jurisdiction
+  responsibilities String? // AML Officer, Chair, etc. (comma-separated)
+  remuneration     String? // Restricted field — finance/admin only
+  guideUrl         String? // Director guide PDF for this jurisdiction
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   entity           Entity            @relation(fields: [entityId], references: [id], onDelete: Cascade)
   meetingAttendees MeetingAttendee[]
@@ -323,7 +352,7 @@ model MeetingDocument {
   fileSize   Int
   uploadedBy String
   uploadedAt DateTime @default(now())
-  category   String   // agenda | pack | minutes | resolution | other
+  category   String // agenda | pack | minutes | resolution | other
   storageUrl String?
 
   meeting BoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
@@ -369,7 +398,7 @@ model ComplianceObligation {
   notes           String?
   recurrence      String           @default("annual")
   source          String           @default("manual") // "manual" | "calendar"
-  calendarYear    Int?             // e.g. 2026 — set when imported from regulatory calendar
+  calendarYear    Int? // e.g. 2026 — set when imported from regulatory calendar
 
   // Filing audit trail
   filingReference String?
@@ -471,7 +500,7 @@ model Alert {
   message   String
   severity  AlertSeverity @default(info)
   status    AlertStatus   @default(unread)
-  category  String        // compliance | license | capital | meeting | general
+  category  String // compliance | license | capital | meeting | general
   relatedId String?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
@@ -492,7 +521,7 @@ model Document {
   id         String   @id @default(cuid())
   entityId   String
   name       String
-  category   String   // constitutional | compliance | license | financial | meeting | other
+  category   String // constitutional | compliance | license | financial | meeting | other
   fileType   String
   fileSize   Int
   uploadedBy String
@@ -558,24 +587,24 @@ enum SubmissionStatus {
 }
 
 model Submission {
-  id            String           @id @default(cuid())
-  type          SubmissionType
-  title         String
-  description   String
-  pageUrl       String?          // Auto-captured page where bug was found
-  component     String?          // Affected component
-  severity      String?          // critical | major | minor (bugs only)
-  area          String?          // Entity | Directors | Compliance etc. (features only)
-  priority      String?          // high | medium | low (features only)
-  submittedBy   String           // User email
-  status        SubmissionStatus @default(open)
+  id          String           @id @default(cuid())
+  type        SubmissionType
+  title       String
+  description String
+  pageUrl     String? // Auto-captured page where bug was found
+  component   String? // Affected component
+  severity    String? // critical | major | minor (bugs only)
+  area        String? // Entity | Directors | Compliance etc. (features only)
+  priority    String? // high | medium | low (features only)
+  submittedBy String // User email
+  status      SubmissionStatus @default(open)
 
   // PRD generated by Claude
-  prdContent    String?          // Full PRD markdown
+  prdContent     String? // Full PRD markdown
   prdGeneratedAt DateTime?
 
   // Slack thread
-  slackMessageTs String?         // Message timestamp for threading replies
+  slackMessageTs String? // Message timestamp for threading replies
 
   // Approval
   approvedBy    String?
@@ -585,11 +614,11 @@ model Submission {
   rejectionNote String?
 
   // Implementation
-  implementedAt DateTime?
+  implementedAt      DateTime?
   implementationNote String?
 
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([type])

@@ -47,11 +47,8 @@ const BLANK_ADD_FORM = {
   department: '',
   title: '',
 
-  password: '',
-  confirmPassword: '',
-
   isActive: true,
-  mustChangePassword: true,
+
 };
 
 const BLANK_EDIT_FORM = {
@@ -78,9 +75,6 @@ export default function UserManagementPage() {
   const [addSaved, setAddSaved] = useState(false);
 
   const [addError, setAddError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
 
   // Edit modal
   const [editOpen, setEditOpen] = useState(false);
@@ -150,19 +144,7 @@ export default function UserManagementPage() {
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    const passwordError = validatePassword(addForm.password);
 
-    if (passwordError) {
-      setAddError(passwordError);
-      return;
-    }
-
-    if (addForm.password !== addForm.confirmPassword) {
-      setAddError('Passwords do not match.');
-      return;
-    }
-
-    // Clear any previous error
     setAddError('');
 
     setAddSaving(true);
@@ -436,7 +418,7 @@ export default function UserManagementPage() {
           <div className="flex flex-col items-center py-10 gap-3">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">✓</div>
             <p className="font-semibold text-green-800">User created successfully</p>
-            <p className="text-sm text-gray-500">The user can now sign in using their email and password.</p>
+            <p className="text-sm text-gray-500">An invitation has been sent to the user's email to set up their account.</p>
           </div>
         ) : (
           <form onSubmit={handleAdd} className="space-y-4">
@@ -447,32 +429,7 @@ export default function UserManagementPage() {
               <FormField label="Work Email" required className="col-span-2">
                 <Input type="email" placeholder="jane.smith@emaildomain.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
-              <FormField label="Temporary Password" required>
 
-                <Input
-                  type="password"
-                  value={addForm.password}
-                  onChange={setAdd("password")}
-                  required
-                />
-              </FormField>
-
-              <FormField label="Confirm Password" required>
-                <Input
-                  type="password"
-                  value={addForm.confirmPassword}
-                  onChange={setAdd("confirmPassword")}
-                  required
-                />
-              </FormField>
-              {addError && (
-                <p className="text-sm text-red-600 mt-1">
-                  {addError}
-                </p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Minimum 8 characters with at least one uppercase letter, one lowercase letter and one number.
-              </p>
               <FormField label="Role" required className="col-span-2">
                 <Select value={addForm.role} onChange={setAdd('role')} options={ROLE_OPTIONS} />
               </FormField>
@@ -558,7 +515,6 @@ export default function UserManagementPage() {
             <div className="col-span-2 flex items-center gap-3">
               <input
                 type="checkbox"
-                checked={addForm.mustChangePassword}
                 onChange={(e) =>
                   setAddForm((prev) => ({
                     ...prev,
