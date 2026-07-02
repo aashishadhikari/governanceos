@@ -8,7 +8,10 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 import { pushStatusToJira } from '@/lib/jiraSync';
 
 export async function PATCH(
@@ -51,15 +54,15 @@ export async function PATCH(
 
     const updated = await prisma.complianceObligation.update({ where: { id }, data });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
-      action: body.status && body.status !== existing.status ? 'STATUS_CHANGE' : 'UPDATE',
+    // Record the compliance obligation update in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
+      action: 'UPDATE',
       tableName: 'compliance_obligations',
       recordId: id,
       entityId: existing.entityId,
       oldValues: existing,
       newValues: updated,
-      ...meta,
     });
 
     // Push status change to Jira (fire-and-forget; never blocks the response)
@@ -91,14 +94,15 @@ export async function DELETE(
     }
     await prisma.complianceObligation.delete({ where: { id } });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+
+    // Record the compliance obligation deletion in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'DELETE',
       tableName: 'compliance_obligations',
       recordId: id,
       entityId: existing.entityId,
       oldValues: existing,
-      ...meta,
     });
 
     return NextResponse.json({ ok: true });

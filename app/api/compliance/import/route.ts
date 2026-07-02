@@ -20,7 +20,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { parseCsv } from '@/lib/csv';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 import type { ComplianceStatus } from '@prisma/client';
 
 const VALID_STATUSES: ComplianceStatus[] = [
@@ -114,8 +117,6 @@ export async function POST(request: Request) {
       const existingId = existingKeys.get(dedupeKey);
 
       try {
-        const meta = requestMeta(request);
-
         if (existingId) {
           // Update existing record instead of creating a duplicate
           await prisma.complianceObligation.update({
@@ -151,14 +152,13 @@ export async function POST(request: Request) {
           results.push({ row: lineNo, status: 'created' });
           created += 1;
 
-          await writeAuditLog({
+          await writeRequestAuditLog(request, {
             action: 'CREATE',
             tableName: 'compliance_obligations',
             recordId: obligation.id,
             entityId,
             newValues: obligation,
             notes: `CSV import — row ${lineNo}`,
-            ...meta,
           });
         }
       } catch (err) {

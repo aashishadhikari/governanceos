@@ -3,7 +3,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 import type { UserRole } from '@prisma/client';
 import { createInvitation } from '@/lib/auth/user-token';
 import { sendInvitationEmail } from '@/lib/email';
@@ -125,14 +128,14 @@ export async function POST(req: NextRequest) {
 
 
 
-    const meta = requestMeta(req);
-    await writeAuditLog({
+    // Record the user creation in the audit trail.
+    // recordId identifies the newly created user.
+    // The authenticated administrator is captured automatically.
+    await writeRequestAuditLog(req, {
       action: 'CREATE',
       tableName: 'users',
       recordId: user.id,
-      userId: user.id,
       newValues: user,
-      ...meta,
     });
 
     return NextResponse.json(user, { status: 201 });

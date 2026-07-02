@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -21,8 +24,8 @@ export async function GET(request: Request) {
       status: c.currentBalance < c.minimumRequired
         ? 'breach'
         : c.currentBalance < c.minimumRequired * 1.2
-        ? 'warning'
-        : 'healthy',
+          ? 'warning'
+          : 'healthy',
       shortfall: c.currentBalance < c.minimumRequired
         ? c.minimumRequired - c.currentBalance
         : 0,
@@ -48,20 +51,32 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json();
     const { entityId, currentBalance } = body;
+    // Read the current record so we can capture the "before" state
+    const existing = await prisma.regulatoryCapital.findUnique({
+      where: { entityId },
+    });
 
+    if (!existing) {
+      return NextResponse.json(
+        { error: 'Regulatory capital record not found' },
+        { status: 404 }
+      );
+    }
     const updated = await prisma.regulatoryCapital.update({
       where: { entityId },
       data: { currentBalance },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+
+    // Record the regulatory capital update in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'UPDATE',
       tableName: 'regulatory_capital',
       recordId: updated.id,
-      entityId,
-      newValues: { currentBalance },
-      ...meta,
+      entityId: updated.entityId,
+      oldValues: existing,
+      newValues: updated,
     });
 
     return NextResponse.json({

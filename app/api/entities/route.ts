@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -64,7 +67,7 @@ export async function POST(request: Request) {
         );
       }
     }
-        
+
     const entity = await prisma.entity.create({
       data: {
         name: body.name,
@@ -84,14 +87,14 @@ export async function POST(request: Request) {
       },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+    // Record the entity creation in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'CREATE',
       tableName: 'entities',
       recordId: entity.id,
       entityId: entity.id,
       newValues: entity,
-      ...meta,
     });
 
     return NextResponse.json({ data: entity }, { status: 201 });

@@ -14,7 +14,10 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 import { JURISDICTION_RULES, computeDueDate, type ObligationRule } from '@/lib/compliance-rules';
 
 /**
@@ -139,8 +142,7 @@ export async function POST(request: Request) {
     }> = [];
     let created = 0;
     let skipped = 0;
-    const meta = requestMeta(request);
-
+   
     for (const p of plans) {
       const k = key(p.entityId, p.rule.requirementType, p.dueDate);
       if (existingKeys.has(k)) {
@@ -178,14 +180,16 @@ export async function POST(request: Request) {
           status: 'created',
         });
 
-        await writeAuditLog({
+        // Record the auto-generated compliance obligation.
+        // The authenticated user who initiated the auto-populate
+        // operation is captured automatically.
+        await writeRequestAuditLog(request, {
           action: 'CREATE',
           tableName: 'compliance_obligations',
           recordId: obligation.id,
           entityId: p.entityId,
           newValues: obligation,
           notes: 'Auto-populate',
-          ...meta,
         });
       } catch (err) {
         skipped += 1;

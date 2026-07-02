@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -61,14 +64,14 @@ export async function POST(request: Request) {
       include: { entity: true },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+    // Record the license creation in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'CREATE',
       tableName: 'licenses',
       recordId: license.id,
       entityId: license.entityId,
       newValues: license,
-      ...meta,
     });
 
     return NextResponse.json({ data: license }, { status: 201 });

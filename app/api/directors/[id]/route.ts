@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 // PATCH /api/directors/[id] — update director fields in place
 export async function PATCH(
@@ -30,23 +33,25 @@ export async function PATCH(
           body.termExpiry === undefined
             ? existing.termExpiry
             : body.termExpiry
-            ? new Date(body.termExpiry)
-            : null,
+              ? new Date(body.termExpiry)
+              : null,
         isActive: body.isActive ?? existing.isActive,
         // guideUrl: explicit null clears it, undefined keeps existing
         ...(body.guideUrl !== undefined ? { guideUrl: body.guideUrl || null } : {}),
       },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+
+
+    // Record the director update in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'UPDATE',
       tableName: 'directors',
       recordId: id,
-      entityId: updated.entityId,
+      entityId: existing.entityId,
       oldValues: existing,
       newValues: updated,
-      ...meta,
     });
 
     return NextResponse.json({ data: updated });
@@ -78,16 +83,16 @@ export async function DELETE(
 
     await prisma.director.delete({ where: { id } });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+
+    // Record the director deletion in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'DELETE',
       tableName: 'directors',
       recordId: id,
       entityId: existing.entityId,
       oldValues: existing,
-      ...meta,
     });
-
     return NextResponse.json({ success: true, id });
   } catch (err) {
     console.error('[DELETE /api/directors/:id]', err);

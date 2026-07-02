@@ -18,7 +18,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { parseCsv } from '@/lib/csv';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function POST(request: Request) {
   try {
@@ -91,8 +94,6 @@ export async function POST(request: Request) {
           where: { entityId, accountNumber },
         });
 
-        const meta = requestMeta(request);
-
         if (existing) {
           const updatedRow = await prisma.bankAccount.update({
             where: { id: existing.id },
@@ -107,7 +108,9 @@ export async function POST(request: Request) {
           });
           updated += 1;
           results.push({ row: lineNo, status: 'updated' });
-          await writeAuditLog({
+          // Record the bank account update performed via CSV import.
+          // The authenticated user is captured automatically.
+          await writeRequestAuditLog(request, {
             action: 'UPDATE',
             tableName: 'bank_accounts',
             recordId: updatedRow.id,
@@ -115,7 +118,6 @@ export async function POST(request: Request) {
             oldValues: existing,
             newValues: updatedRow,
             notes: `CSV import — row ${lineNo}`,
-            ...meta,
           });
         } else {
           const newRow = await prisma.bankAccount.create({
@@ -131,14 +133,15 @@ export async function POST(request: Request) {
           });
           created += 1;
           results.push({ row: lineNo, status: 'created' });
-          await writeAuditLog({
+          // Record the bank account creation performed via CSV import.
+          // The authenticated user is captured automatically.
+          await writeRequestAuditLog(request, {
             action: 'CREATE',
             tableName: 'bank_accounts',
             recordId: newRow.id,
             entityId,
             newValues: newRow,
             notes: `CSV import — row ${lineNo}`,
-            ...meta,
           });
         }
       } catch (err) {

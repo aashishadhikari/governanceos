@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -22,7 +25,7 @@ export async function GET(request: Request) {
         const r = d.role.toLowerCase();
         if (category === 'independent') return r.includes('independent');
         if (category === 'non-executive') return r.includes('non-executive');
-        if (category === 'executive') return ['ceo','president','cfo','coo','cmo','cto','ccc','chief','managing director','chairman'].some(k => r.includes(k));
+        if (category === 'executive') return ['ceo', 'president', 'cfo', 'coo', 'cmo', 'cto', 'ccc', 'chief', 'managing director', 'chairman'].some(k => r.includes(k));
         return true;
       });
     }
@@ -56,16 +59,15 @@ export async function POST(request: Request) {
       include: { entity: true },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+    // Record the director creation in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'CREATE',
       tableName: 'directors',
       recordId: director.id,
       entityId: director.entityId,
       newValues: director,
-      ...meta,
     });
-
     return NextResponse.json({ data: director }, { status: 201 });
   } catch (err) {
     console.error('[POST /api/directors]', err);

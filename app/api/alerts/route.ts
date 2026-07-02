@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -62,14 +65,15 @@ export async function PATCH(request: Request) {
       data: { status },
     });
 
-    const meta = requestMeta(request);
+   
     for (const id of alertIds) {
-      await writeAuditLog({
+      // Record the alert status update in the audit trail.
+      // The authenticated user is captured automatically.
+      await writeRequestAuditLog(request, {
         action: 'UPDATE',
         tableName: 'alerts',
         recordId: id,
         newValues: { status },
-        ...meta,
       });
     }
 

@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-// Audit helper automatically adds the current user and request metadata
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
 
 // PATCH /api/entities/[id] — update entity fields in place
@@ -40,11 +42,8 @@ export async function PATCH(
       },
     });
 
-    // Record the change in the audit trail.
-    // The helper automatically captures:
-    // - authenticated user
-    // - IP address
-    // - User-Agent
+    // Record the entity update in the audit trail.
+    // The authenticated user is captured automatically.
     await writeRequestAuditLog(request, {
       action: 'UPDATE',
       tableName: 'entities',

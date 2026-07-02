@@ -4,9 +4,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-// Preferred audit helper for API routes.
-// Automatically records the authenticated user,
-// IP address and browser information.
+// Preferred helper for API routes.
+// Automatically records:
+// - authenticated user
+// - client IP address
+// - browser User-Agent
 import { writeRequestAuditLog } from '@/lib/audit';
 
 interface Props { params: Promise<{ id: string }> }
@@ -48,8 +50,8 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     });
 
     // Record the update in the audit trail.
-    // recordId identifies the user being edited.
-    // The authenticated administrator is captured automatically.
+    // recordId identifies the target user being modified.
+    // The authenticated user (actor) is captured automatically.
     await writeRequestAuditLog(req, {
       action: 'UPDATE',
       tableName: 'users',
@@ -68,6 +70,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   }
 }
 
+// Record the user deactivation in the audit trail.
+// recordId identifies the target user.
+// The authenticated user (actor) is captured automatically.
 export async function DELETE(req: NextRequest, { params }: Props) {
   try {
     const { id } = await params;

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import type { Prisma, ComplianceStatus } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred helper for API routes.
+// Automatically records the authenticated user,
+// client IP address and browser User-Agent.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 const VALID_STATUSES: ComplianceStatus[] = [
   'pending',
@@ -77,14 +80,14 @@ export async function POST(request: Request) {
       include: { entity: true },
     });
 
-    const meta = requestMeta(request);
-    await writeAuditLog({
+    // Record the compliance obligation creation in the audit trail.
+    // The authenticated user is captured automatically.
+    await writeRequestAuditLog(request, {
       action: 'CREATE',
       tableName: 'compliance_obligations',
       recordId: obligation.id,
       entityId: obligation.entityId,
       newValues: obligation,
-      ...meta,
     });
 
     return NextResponse.json({ data: obligation }, { status: 201 });
