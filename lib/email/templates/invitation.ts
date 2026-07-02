@@ -7,16 +7,16 @@ export function buildInvitationEmail(
   data: InvitationEmailData
 ) {
   return {
-    subject: 'You are invited to GovernanceOS',
+    subject: 'You are invited to ISEND Corporate Entities Governance Platform',
 
     html: `
       <div style="font-family: Arial, Helvetica, sans-serif; max-width:600px; margin:auto;">
-        <h2>Welcome to GovernanceOS</h2>
+        <h2>Welcome to ISEND Corporate Entities Governance Platform</h2>
 
         <p>Hello ${data.recipientName},</p>
 
         <p>
-          An administrator has created your GovernanceOS account.
+          An administrator has created your account.
         </p>
 
         <p>

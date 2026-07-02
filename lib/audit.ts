@@ -4,6 +4,8 @@
 
 import { prisma } from '@/lib/prisma';
 import type { AuditAction } from '@prisma/client';
+import { getAuthSession } from '@/lib/auth/session';
+
 
 interface AuditParams {
   action: AuditAction;
@@ -17,7 +19,9 @@ interface AuditParams {
   userAgent?: string;
   notes?: string;
 }
-
+// Low-level audit writer.
+// Use this from background jobs, scripts, seeders or anywhere
+// a Request object is not available.
 export async function writeAuditLog(params: AuditParams) {
   try {
     await prisma.auditLog.create({
@@ -39,6 +43,33 @@ export async function writeAuditLog(params: AuditParams) {
     console.error('[AuditLog] Failed to write:', err);
   }
 }
+
+// Preferred helper for Next.js API routes.
+// Automatically records:
+// - authenticated user
+// - client IP address
+// - browser User-Agent
+//
+// Most API routes should call this instead of writeAuditLog().
+
+export async function writeRequestAuditLog(
+  request: Request,
+  params: AuditParams,
+) {
+  // Get the currently authenticated user (if any)
+  const session = await getAuthSession();
+
+  // Extract request metadata (IP address and User-Agent)
+  const meta = requestMeta(request);
+
+  // Write the final audit record
+  await writeAuditLog({
+    ...params,
+    userId: session?.user?.id,
+    ...meta,
+  });
+}
+
 
 // Convenience: extract IP + User-Agent from a Next.js Request
 export function requestMeta(req: Request) {

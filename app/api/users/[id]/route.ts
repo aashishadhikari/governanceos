@@ -4,7 +4,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { writeAuditLog, requestMeta } from '@/lib/audit';
+// Preferred audit helper for API routes.
+// Automatically records the authenticated user,
+// IP address and browser information.
+import { writeRequestAuditLog } from '@/lib/audit';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -44,15 +47,15 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       data: body,
     });
 
-    const meta = requestMeta(req);
-    await writeAuditLog({
+    // Record the update in the audit trail.
+    // recordId identifies the user being edited.
+    // The authenticated administrator is captured automatically.
+    await writeRequestAuditLog(req, {
       action: 'UPDATE',
       tableName: 'users',
       recordId: id,
-      userId: id,
       oldValues: user,
       newValues: updated,
-      ...meta,
     });
 
     return NextResponse.json(updated);
@@ -79,15 +82,14 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       data: { isActive: false },
     });
 
-    const meta = requestMeta(req);
-    await writeAuditLog({
+    // Record the deactivation in the audit trail.
+    // The authenticated administrator is recorded automatically.
+    await writeRequestAuditLog(req, {
       action: 'DEACTIVATE',
       tableName: 'users',
       recordId: id,
-      userId: id,
       oldValues: { isActive: user.isActive },
       newValues: { isActive: false },
-      ...meta,
     });
 
     return NextResponse.json({ success: true, user: updated });

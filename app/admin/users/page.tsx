@@ -491,11 +491,11 @@ export default function UserManagementPage() {
                   value={editForm.email}
                   onChange={setEdit('email')}
                   required
-                  placeholder="name@governanceos.app"
+                  placeholder="name@email.com"
                 />
                 {editForm.email !== editUser?.email && (
                   <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                    ⚠ Changing the email will also update the Okta login identifier.
+                    ⚠ Changing the email will also update the login session identifier.
                   </p>
                 )}
               </FormField>
@@ -553,7 +553,7 @@ export default function UserManagementPage() {
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
             Are you sure you want to deactivate <span className="font-semibold text-gray-900">{confirmUser?.name}</span>?
-            They will lose all access to EntityOS and their Okta session will be revoked.
+            They will lose all access to the platform and their session will be revoked.
           </p>
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
             <Button type="button" variant="secondary" onClick={() => setConfirmUser(null)}>Cancel</Button>
