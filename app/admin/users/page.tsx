@@ -146,17 +146,21 @@ export default function UserManagementPage() {
     e.preventDefault();
 
     setAddError('');
-
     setAddSaving(true);
 
     const res = await fetch('/api/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(addForm),
     });
 
+    const result = await res.json();
+
     if (res.ok) {
       await fetchUsers();
+
       setAddSaving(false);
       setAddSaved(true);
 
@@ -165,8 +169,13 @@ export default function UserManagementPage() {
         setAddOpen(false);
         setAddForm(BLANK_ADD_FORM);
       }, 1500);
+
     } else {
       setAddSaving(false);
+
+      setAddError(
+        result.error ?? 'Failed to create user.'
+      );
     }
   };
 
@@ -422,6 +431,11 @@ export default function UserManagementPage() {
           </div>
         ) : (
           <form onSubmit={handleAdd} className="space-y-4">
+            {addError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {addError}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Full Name" required className="col-span-2">
                 <Input placeholder="Jane Smith" value={addForm.name} onChange={setAdd('name')} required />
@@ -429,7 +443,6 @@ export default function UserManagementPage() {
               <FormField label="Work Email" required className="col-span-2">
                 <Input type="email" placeholder="jane.smith@emaildomain.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
-
               <FormField label="Role" required className="col-span-2">
                 <Select value={addForm.role} onChange={setAdd('role')} options={ROLE_OPTIONS} />
               </FormField>

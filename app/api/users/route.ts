@@ -6,6 +6,8 @@ import prisma from '@/lib/prisma';
 import { writeAuditLog, requestMeta } from '@/lib/audit';
 import type { UserRole } from '@prisma/client';
 import { createInvitation } from '@/lib/auth/user-token';
+import { sendInvitationEmail } from '@/lib/email';
+import { Prisma } from '@prisma/client';
 
 
 export async function GET() {
@@ -61,7 +63,22 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error: 'A user with this email address already exists.',
+        },
+        {
+          status: 400,
+        }
+      );
+    }
     const user = await prisma.user.create({
       data: {
         name,
@@ -89,11 +106,22 @@ export async function POST(req: NextRequest) {
     const invitationUrl =
       `http://localhost:3000/setup-password?token=${invitation.token}`;
 
-    console.log('==========================================');
-    console.log('User Invitation');
-    console.log(invitationUrl);
-    console.log('==========================================');
-
+    // console.log('==========================================');
+    // console.log('User Invitation');
+    // console.log(invitationUrl);
+    // console.log('==========================================');
+    try {
+      console.log('Sending invitation email...');
+      await sendInvitationEmail(
+        user.name,
+        user.email,
+        invitationUrl
+      );
+      console.log('Invitation email sent.');
+    } catch (error) {
+      console.error('[POST /api/users] (invitation email)', error);
+      console.error('Failed to send invitation email:', error);
+    }
 
 
 
