@@ -62,3 +62,64 @@ export async function PATCH(
     );
   }
 }
+
+// Delete Entity by ID
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // Check whether the entity exists
+    const entity = await prisma.entity.findUnique({
+      where: { id },
+      include: {
+        subsidiaries: {
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!entity) {
+      return NextResponse.json(
+        { error: 'Entity not found.' },
+        { status: 404 }
+      );
+    }
+
+    // Prevent deleting an entity that still has subsidiaries
+    if (entity.subsidiaries.length > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'Cannot delete an entity that has subsidiary entities. Remove or reassign the subsidiaries first.',
+        },
+        { status: 400 }
+      );
+    }
+
+    await prisma.entity.delete({
+      where: { id },
+    });
+
+    await writeRequestAuditLog(request, {
+      action: 'DELETE',
+      tableName: 'entities',
+      recordId: id,
+      entityId: id,
+      oldValues: entity,
+    });
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (err) {
+    console.error('[DELETE /api/entities/:id]', err);
+
+    return NextResponse.json(
+      { error: 'Failed to delete entity.' },
+      { status: 500 }
+    );
+  }
+}

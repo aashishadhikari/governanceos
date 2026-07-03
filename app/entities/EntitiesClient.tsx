@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import { formatDate, getStatusColor, getFlagEmoji, daysUntil } from '@/lib/utils';
-import { Building2, Plus, Search, CheckCircle, XCircle, Shield, Activity, ExternalLink } from 'lucide-react';
+import { Building2, Plus, Search, CheckCircle, XCircle, Shield, Activity, ExternalLink, Pencil, Trash2, } from 'lucide-react';
 import Link from 'next/link';
 import AddEntityModal from '@/components/entities/AddEntityModal';
 import type { Entity, ComplianceObligation, License, RegulatoryCapital } from '@/lib/db/schema';
+import { useRouter } from 'next/navigation';
 
 interface Props {
   entities: Entity[];
@@ -31,6 +32,7 @@ export default function EntitiesClient({ entities, complianceObligations, licens
   const [search, setSearch] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const router = useRouter();
 
   const filtered = entities.filter(e => {
     const q = search.toLowerCase();
@@ -44,7 +46,36 @@ export default function EntitiesClient({ entities, complianceObligations, licens
     const matchStatus = !filterStatus || e.status === filterStatus;
     return matchSearch && matchCountry && matchStatus;
   });
+  const handleDelete = async (
+    e: React.MouseEvent,
+    id: string,
+    name: string
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
 
+    if (!confirm(`Delete "${name}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/entities/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error || 'Failed to delete entity.');
+        return;
+      }
+
+      router.refresh();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete entity.');
+    }
+  };
   return (
     <div>
       <Header
@@ -124,28 +155,58 @@ export default function EntitiesClient({ entities, complianceObligations, licens
               >
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <span className="text-3xl">{getFlagEmoji(entity.country)}</span>
+                    <span className="text-2xl">{getFlagEmoji(entity.country)}</span>
+
                     <div>
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
+                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors leading-tight">
                           {entity.name}
                         </h3>
-                        {entity.isLegacyEntity && (
-                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700">
-                            Ixaris
-                          </span>
-                        )}
+
+                        <span
+                          className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(
+                            entity.status
+                          )}`}
+                        >
+                          {entity.status}
+                        </span>
                       </div>
+
                       {entity.formerName && (
-                        <p className="text-xs text-gray-400 mt-0.5">Formerly: {entity.formerName}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Formerly: {entity.formerName}
+                        </p>
                       )}
-                      <p className="text-xs text-gray-500 mt-0.5">{entity.country} · {entity.legalStructure}</p>
+
+                      <p className="text-sm text-gray-500 mt-1">
+                        {entity.country} · {entity.legalStructure}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${getStatusColor(entity.status)}`}>
-                      {entity.status}
-                    </span>
+
+                  <div className="flex flex-col items-end justify-between h-full shrink-0">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Edit - to be implemented later
+                        }}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="Edit Entity"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        onClick={(e) => handleDelete(e, entity.id, entity.name)}
+                        className="text-red-600 hover:text-red-800"
+                        title="Delete Entity"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
                     <HealthBadge score={entity.healthScore} />
                   </div>
                 </div>
