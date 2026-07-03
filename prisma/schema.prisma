@@ -217,7 +217,7 @@ model Entity {
   registrationNumber String
   registeredAddress  String?
   incorporationDate  DateTime
-  financialYearEnd   String // e.g. "31 December"
+  financialYearEnd   String? // e.g. "31 December"
   governingLaw       String?
   auditor            String?
   regulator          String?

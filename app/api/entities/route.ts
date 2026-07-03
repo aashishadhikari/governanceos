@@ -67,7 +67,12 @@ export async function POST(request: Request) {
         );
       }
     }
-
+    if (!body.financialYearEnd?.trim()) {
+      return NextResponse.json(
+        { error: 'Financial Year End is required.' },
+        { status: 400 }
+      );
+    }
     const entity = await prisma.entity.create({
       data: {
         name: body.name,

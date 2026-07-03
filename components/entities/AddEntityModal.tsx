@@ -5,8 +5,8 @@ import Modal from '@/components/ui/Modal';
 import { FormField, Input, Select, Textarea, Button } from '@/components/ui/FormField';
 import type { Entity } from '@/lib/db/schema';
 
-const COUNTRIES = ['Singapore', 'United Kingdom', 'United States', 'Lithuania', 'Australia', 'India', 'Hong Kong', 'Canada', 'Netherlands', 'Germany', 'France', 'Japan', 'UAE'];
-const LEGAL_STRUCTURES = ['Private Limited Company', 'Proprietary Limited Company', 'Corporation (Delaware)', 'Corporation', 'Limited Liability Company', 'Branch', 'Representative Office'];
+const COUNTRIES = ['Singapore', 'United Kingdom', 'United States', 'Lithuania', 'Australia', 'India', 'Hong Kong', 'Canada', 'Netherlands', 'Germany', 'France', 'Japan', 'Vietnam', 'UAE','Mexico'];
+const LEGAL_STRUCTURES = ['Holding Company', 'Private Limited Company', 'Proprietary Limited Company', 'Corporation (Delaware)', 'Corporation', 'Limited Liability Company', 'Individual', 'Branch', 'Representative Office'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 interface Props {
@@ -96,7 +96,7 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
               <Input placeholder="e.g. Ernst & Young LLP" value={form.auditor} onChange={set('auditor')} />
             </FormField>
 
-            <FormField label="Financial Year End">
+            <FormField label="Financial Year End" required>
               <Select value={form.financialYearEnd} onChange={set('financialYearEnd')} placeholder="Select month"
                 options={MONTHS.map(m => ({ value: m, label: m }))} />
             </FormField>
