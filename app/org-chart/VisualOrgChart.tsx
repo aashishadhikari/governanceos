@@ -1,117 +1,122 @@
-
 'use client';
 
+import { buildHierarchy } from './hierarchy';
+import type { EntityTreeNode } from './hierarchy';
+import EntityNode from './EntityNode';
 import type { Entity } from '@/lib/db/schema';
 
-function Card({ entity }: { entity: Entity }) {
-  const score = entity.healthScore;
-  const [bg, fg] =
-    score == null
-      ? ['', '']
-      : score >= 80
-      ? ['#dcfce7', '#166534']
-      : score >= 60
-      ? ['#fef3c7', '#92400e']
-      : ['#fee2e2', '#991b1b'];
-
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white shadow-sm min-w-[240px]">
-      <div className="bg-blue-900 px-3 py-2">
-        <div className="flex items-center justify-between">
-          <div className="text-sm font-semibold text-white">{entity.name}</div>
-          {score != null && (
-            <span
-              className="rounded px-1.5 py-0.5 text-[10px] font-bold"
-              style={{ backgroundColor: bg, color: fg }}
-            >
-              {score}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="px-3 py-2 text-xs text-gray-500">
-        {entity.country}
-      </div>
-    </div>
-  );
+interface Props {
+  entities: Entity[];
 }
 
-function Node({
-  entity,
-  entities,
-}: {
-  entity: Entity;
-  entities: Entity[];
-}) {
-  const children = entities.filter(e => e.parentEntityId === entity.id);
-
+function Tree({ node }: { node: EntityTreeNode }) {
   return (
     <div className="flex flex-col items-center">
-      <Card entity={entity} />
 
-      {children.length > 0 && (
+      {/* Parent Card */}
+      <EntityNode node={node} />
+
+      {node.children.length > 0 && (
         <>
-          <div className="h-5 w-px bg-gray-300" />
+          {/* Vertical line */}
+          <div className="w-px h-12 bg-slate-300" />
 
-          <div className="flex gap-8 items-start relative">
-            {children.map(child => (
-              <Node
-                key={child.id}
-                entity={child}
-                entities={entities}
+          {/* Children */}
+          <div className="flex flex-col items-center">
+
+            {/* Horizontal connector */}
+            <svg
+              width={Math.max(node.children.length * 260, 260)}
+              height="24"
+              className="overflow-visible"
+            >
+              {/* Horizontal */}
+              <line
+                x1="20"
+                y1="1"
+                x2={Math.max(node.children.length * 260 - 20, 240)}
+                y2="1"
+                stroke="#cbd5e1"
+                strokeWidth="1.5"
               />
-            ))}
+
+              {node.children.map((_, index) => {
+                const spacing =
+                  Math.max(node.children.length * 260, 260) /
+                  node.children.length;
+
+                const x = spacing / 2 + spacing * index;
+
+                return (
+                  <line
+                    key={index}
+                    x1={x}
+                    y1="1"
+                    x2={x}
+                    y2="24"
+                    stroke="#cbd5e1"
+                    strokeWidth="1.5"
+                  />
+                );
+              })}
+            </svg>
+
+            <div className="flex gap-14 items-start">
+              {node.children.map(child => (
+                <Tree
+                  key={child.id}
+                  node={child}
+                />
+              ))}
+            </div>
+
           </div>
         </>
       )}
+
     </div>
   );
 }
 
 export default function VisualOrgChart({
   entities,
-}: {
-  entities: Entity[];
-}) {
-  const active = entities.filter(e => e.status !== 'dissolved');
+}: Props) {
 
-  const roots = active.filter(e => !e.parentEntityId);
+  const active = entities.filter(
+    e => e.status !== 'dissolved'
+  );
 
-  if (!roots.length) {
-    return (
-      <p className="p-4 text-sm text-gray-500">
-        No root entities found.
-      </p>
-    );
-  }
+  const roots = buildHierarchy(active);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center">
-        <p className="text-xs text-gray-400">
-          {active.length} entities · {roots.length} root entities
-        </p>
+    <div className="space-y-6">
 
-        <button
-          onClick={() => window.print()}
-          className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm hover:bg-gray-50"
-        >
-          Print / PDF
-        </button>
+      <div className="flex items-center">
+
+        <div className="text-sm text-slate-500">
+          {active.length} entities · {roots.length} parent entities
+        </div>
+
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-slate-50 p-8">
-        <div className="flex gap-16 items-start">
+      <div className="overflow-x-auto rounded-xl border bg-gradient-to-b from-slate-50 to-white">
+        <div className="inline-flex items-start gap-12 px-24 py-10 min-w-max">
+
           {roots.map(root => (
-            <Node
+            <div
               key={root.id}
-              entity={root}
-              entities={active}
-            />
+              className={`flex-shrink-0 flex justify-center ${root.children.length
+                  ? 'min-w-[900px]'
+                  : 'min-w-[420px]'
+                }`}
+            >
+              <Tree node={root} />
+            </div>
           ))}
+
         </div>
       </div>
+
     </div>
   );
 }
