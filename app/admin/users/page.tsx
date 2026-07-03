@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Modal from '@/components/ui/Modal';
 import { FormField, Input, Select, Button } from '@/components/ui/FormField';
-import { Users, Plus, Pencil, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw } from 'lucide-react';
+import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw } from 'lucide-react';
 import type { AppUser, UserRole } from '@/lib/db/users';
 import { ROLE_LABELS, ROLE_PERMISSIONS } from '@/lib/db/users';
 import { formatDate } from '@/lib/utils';
@@ -194,6 +194,41 @@ export default function UserManagementPage() {
     setTimeout(() => { setEditSaved(false); setEditOpen(false); }, 1500);
   };
 
+  // Sends a new password setup email to the selected user.
+  // Any previous setup links are automatically invalidated by the API.
+  const handleResetPassword = async (user: AppUser) => {
+    const confirmed = window.confirm(
+      `Reset the password for "${user.name}"?\n\n` +
+      `A new password setup email will be sent.\n` +
+      `Any previous setup links will no longer work.`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `/api/users/${user.id}/resend-invitation`,
+        {
+          method: 'POST',
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.error ?? 'Failed to send password setup email.');
+        return;
+      }
+
+      alert('Password setup email sent successfully.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to send password setup email.');
+    }
+  };
+
   const handleDeactivate = async () => {
     if (!confirmUser) return;
     setConfirmSaving(true);
@@ -360,18 +395,24 @@ export default function UserManagementPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button onClick={() => openEdit(user)}
-                            className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-indigo-600 transition-colors" title="Edit user">
-                            <Pencil className="w-3.5 h-3.5" />
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-gray-200 hover:text-blue-700 transition-colors" title="Edit User">
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleResetPassword(user)}
+                            className="p-1.5 rounded-lg text-amber-600 hover:bg-gray-200 hover:text-amber-700 transition-colors" title="Reset Password">
+                          <KeyRound className="w-4 h-4" />
                           </button>
                           {user.isActive ? (
                             <button onClick={() => setConfirmUser(user)}
-                              className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600 transition-colors" title="Deactivate">
-                              <UserX className="w-3.5 h-3.5" />
+                              className="p-1.5 rounded-lg text-red-600 hover:bg-gray-200 hover:text-red-700 transition-colors" title="Deactivate">
+                              <UserX className="w-4 h-4" />
                             </button>
                           ) : (
-                            <button onClick={() => handleReactivate(user)}
-                              className="p-1.5 hover:bg-green-50 rounded-lg text-gray-400 hover:text-green-600 transition-colors" title="Reactivate">
-                              <UserCheck className="w-3.5 h-3.5" />
+                            <button
+                              onClick={() => handleReactivate(user)}
+                              className="p-1.5 rounded-lg text-green-600 hover:bg-gray-200 hover:text-green-700 transition-colors" title="Reactivate User">
+                              <UserCheck className="w-4 h-4" />
                             </button>
                           )}
                         </div>
