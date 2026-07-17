@@ -28,9 +28,11 @@ export async function PATCH(
 
     const data: Record<string, unknown> = {};
     if (body.status !== undefined) data.status = body.status;
+    if (body.entityId !== undefined) data.entityId = body.entityId;
     if (body.owner !== undefined) data.owner = body.owner;
     if (body.notes !== undefined) data.notes = body.notes;
     if (body.filingReference !== undefined) data.filingReference = body.filingReference;
+    if (body.jiraReference !== undefined) data.jiraReference = body.jiraReference;
     if (body.confirmedBy !== undefined) data.confirmedBy = body.confirmedBy;
     if (body.requirementType !== undefined) data.requirementType = body.requirementType;
     if (body.regulator !== undefined) data.regulator = body.regulator;

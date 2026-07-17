@@ -4,6 +4,9 @@ import { Fragment, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import { formatDate, getFlagEmoji } from '@/lib/utils';
+// Modal used for creating and editing compliance obligations
+import ComplianceObligationModal from '@/components/compliance/ComplianceObligationModal';
+import { useToast } from '@/components/ui/ToastProvider';
 import {
   ClipboardCheck,
   AlertCircle,
@@ -31,11 +34,11 @@ interface Props {
 }
 
 const STATUS_CONFIG: Record<ComplianceStatus, { label: string; color: string; icon: React.ElementType }> = {
-  pending:        { label: 'Pending',        color: 'bg-amber-100 text-amber-700 border-amber-200',  icon: Clock3 },
-  submitted:      { label: 'Submitted',      color: 'bg-blue-100 text-blue-700 border-blue-200',     icon: ClipboardCheck },
-  overdue:        { label: 'Overdue',        color: 'bg-red-100 text-red-700 border-red-200',        icon: AlertCircle },
-  completed:      { label: 'Completed',      color: 'bg-green-100 text-green-700 border-green-200',  icon: CheckCircle2 },
-  not_applicable: { label: 'N/A',            color: 'bg-gray-100 text-gray-600 border-gray-200',     icon: ClipboardCheck },
+  pending: { label: 'Pending', color: 'bg-amber-100 text-amber-700 border-amber-200', icon: Clock3 },
+  submitted: { label: 'Submitted', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: ClipboardCheck },
+  overdue: { label: 'Overdue', color: 'bg-red-100 text-red-700 border-red-200', icon: AlertCircle },
+  completed: { label: 'Completed', color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 },
+  not_applicable: { label: 'N/A', color: 'bg-gray-100 text-gray-600 border-gray-200', icon: ClipboardCheck },
 };
 
 const RECURRENCE_LABEL: Record<string, string> = {
@@ -67,10 +70,10 @@ function daysUntil(dateStr: string | Date): number {
 function parseDris(notes: string | null): { compliance: string; finance: string } {
   if (!notes) return { compliance: '', finance: '' };
   const compMatch = notes.match(/Compliance DRI:\s*([^|]+)/i);
-  const finMatch  = notes.match(/Finance DRI:\s*([^|]+)/i);
+  const finMatch = notes.match(/Finance DRI:\s*([^|]+)/i);
   return {
     compliance: compMatch?.[1]?.trim() ?? '',
-    finance:    finMatch?.[1]?.trim() ?? '',
+    finance: finMatch?.[1]?.trim() ?? '',
   };
 }
 
@@ -222,9 +225,9 @@ function UrgencyBar({ days, status }: { days: number; status: ComplianceStatus }
   const color = days < 0 || status === 'overdue'
     ? 'bg-red-500'
     : days <= 14 ? 'bg-red-400'
-    : days <= 30 ? 'bg-orange-400'
-    : days <= 60 ? 'bg-amber-400'
-    : 'bg-yellow-300';
+      : days <= 30 ? 'bg-orange-400'
+        : days <= 60 ? 'bg-amber-400'
+          : 'bg-yellow-300';
 
   return (
     <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden mt-1">
@@ -242,7 +245,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [sortAsc, setSortAsc] = useState(true);
   const [showImport, setShowImport] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [autoPopulating, setAutoPopulating] = useState(false);
   const [importResult, setImportResult] = useState<{ title: string; data: ImportResult } | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -251,6 +253,7 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [syncResult, setSyncResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
   const [clearing, setClearing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toast = useToast();
 
   const handleClearAll = async () => {
     if (!confirm(`This will permanently delete all ${initialObligations.length} compliance obligations. Are you sure?`)) return;
@@ -314,6 +317,36 @@ export default function ComplianceClient({ initialObligations, entities }: Props
     }
   }
 
+  async function deleteObligation(id: string) {
+    if (
+      !confirm(
+        'Delete this compliance obligation?\n\nThis action cannot be undone.'
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/compliance/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error || 'Failed to delete obligation');
+        return;
+      }
+
+      router.refresh();
+    } catch (err) {
+      alert(
+        err instanceof Error
+          ? err.message
+          : 'Failed to delete obligation'
+      );
+    }
+  }
+
   const handleUpload = async (file: File) => {
     setUploading(true);
     setImportError(null);
@@ -337,28 +370,12 @@ export default function ComplianceClient({ initialObligations, entities }: Props
     }
   };
 
-  const handleAutoPopulate = async () => {
-    if (!confirm('Generate baseline compliance obligations (Annual Return, Corporate Tax, Audited Financials, Regulatory Capital Return) for all active entities over the next 12 months?')) {
-      return;
-    }
-    setAutoPopulating(true);
-    setImportError(null);
-    setImportResult(null);
-    try {
-      const res = await fetch('/api/compliance/auto-populate', { method: 'POST' });
-      const json = await res.json();
-      if (!res.ok) {
-        setImportError(json.error || 'Auto-populate failed');
-      } else {
-        setImportResult({ title: 'Auto-populate', data: json });
-        router.refresh();
-      }
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Auto-populate failed');
-    } finally {
-      setAutoPopulating(false);
-    }
-  };
+  // Controls the New/Edit Compliance Obligation modal visibility
+  const [showObligationModal, setShowObligationModal] = useState(false);
+
+  const [selectedObligation, setSelectedObligation] =
+    useState<ComplianceObligation | null>(null);
+
 
   const entityMap = useMemo(() => {
     const m = new Map<string, Entity>();
@@ -443,20 +460,23 @@ export default function ComplianceClient({ initialObligations, entities }: Props
       <main className="flex-1 p-8 space-y-6">
         {/* Action bar */}
         <div className="flex items-center gap-3">
+          {/* Create a new compliance obligation manually */}
+          <button
+            onClick={() => {
+              setSelectedObligation(null);
+              setShowObligationModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
+          >
+            + New Obligation
+          </button>
+
           <button
             onClick={() => setShowImport(v => !v)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
           >
             <Upload className="w-4 h-4" />
             Import CSV
-          </button>
-          <button
-            onClick={handleAutoPopulate}
-            disabled={autoPopulating}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
-          >
-            <Sparkles className="w-4 h-4" />
-            {autoPopulating ? 'Generating…' : 'Auto-populate from entities'}
           </button>
           <a
             href="/compliance_obligations_template.csv"
@@ -486,9 +506,8 @@ export default function ComplianceClient({ initialObligations, entities }: Props
 
         {/* Urgency callout bar */}
         {(urgencyCounts.overdue > 0 || urgencyCounts.within14 > 0) && (
-          <div className={`rounded-lg border p-4 flex items-center gap-4 ${
-            urgencyCounts.overdue > 0 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'
-          }`}>
+          <div className={`rounded-lg border p-4 flex items-center gap-4 ${urgencyCounts.overdue > 0 ? 'bg-red-50 border-red-200' : 'bg-orange-50 border-orange-200'
+            }`}>
             <AlertCircle className={`w-5 h-5 flex-shrink-0 ${urgencyCounts.overdue > 0 ? 'text-red-500' : 'text-orange-500'}`} />
             <div className="flex-1 text-sm">
               {urgencyCounts.overdue > 0 && (
@@ -605,9 +624,8 @@ export default function ComplianceClient({ initialObligations, entities }: Props
               <button
                 key={s}
                 onClick={() => setStatusFilter(statusFilter === s ? 'all' : s)}
-                className={`p-4 rounded-lg border text-left transition-all ${
-                  statusFilter === s ? 'ring-2 ring-indigo-500 border-indigo-300' : 'border-gray-200 hover:border-gray-300'
-                } bg-white`}
+                className={`p-4 rounded-lg border text-left transition-all ${statusFilter === s ? 'ring-2 ring-indigo-500 border-indigo-300' : 'border-gray-200 hover:border-gray-300'
+                  } bg-white`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <Icon className="w-4 h-4 text-gray-500" />
@@ -632,11 +650,10 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             <button
               key={key}
               onClick={() => setUrgencyFilter(urgencyFilter === key ? 'all' : key)}
-              className={`px-3 py-1 rounded-full border text-xs font-medium transition-all ${
-                urgencyFilter === key
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
-              }`}
+              className={`px-3 py-1 rounded-full border text-xs font-medium transition-all ${urgencyFilter === key
+                ? 'bg-indigo-600 text-white border-indigo-600'
+                : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                }`}
             >
               {label}
             </button>
@@ -704,9 +721,8 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                     <Fragment key={o.id}>
                       <tr
                         onClick={() => setExpandedId(expanded ? null : o.id)}
-                        className={`cursor-pointer transition-colors ${
-                          isUrgent ? 'bg-red-50/40 hover:bg-red-50' : 'hover:bg-gray-50'
-                        } ${expanded ? 'bg-indigo-50/30' : ''}`}
+                        className={`cursor-pointer transition-colors ${isUrgent ? 'bg-red-50/40 hover:bg-red-50' : 'hover:bg-gray-50'
+                          } ${expanded ? 'bg-indigo-50/30' : ''}`}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -754,25 +770,49 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                         <td className="px-4 py-3">
                           <DriCell notes={o.notes} owner={o.owner} />
                         </td>
-                        <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
-                          {o.status === 'completed' ? (
+                        <td
+                          className="px-4 py-3 text-right"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-end gap-2">
+
                             <button
-                              onClick={() => updateStatus(o.id, 'pending')}
-                              disabled={updatingId === o.id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                              onClick={() => {
+                                setSelectedObligation(o);
+                                setShowObligationModal(true);
+                              }}
+                              className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50"
                             >
-                              Reopen
+                              Edit
                             </button>
-                          ) : (
+
                             <button
-                              onClick={() => updateStatus(o.id, 'completed')}
-                              disabled={updatingId === o.id}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                              onClick={() => deleteObligation(o.id)}
+                              className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
                             >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              {updatingId === o.id ? 'Saving…' : 'Mark Done'}
+                              Delete
                             </button>
-                          )}
+
+                            {o.status === 'completed' ? (
+                              <button
+                                onClick={() => updateStatus(o.id, 'pending')}
+                                disabled={updatingId === o.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded border border-gray-200 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                              >
+                                Reopen
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => updateStatus(o.id, 'completed')}
+                                disabled={updatingId === o.id}
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-green-600 text-white text-xs font-medium hover:bg-green-700 disabled:opacity-50"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                {updatingId === o.id ? 'Saving…' : 'Mark Done'}
+                              </button>
+                            )}
+
+                          </div>
                         </td>
                       </tr>
                       {expanded && (
@@ -882,6 +922,20 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             </tbody>
           </table>
         </div>
+        {/* New/Edit Compliance Obligation modal */}
+        <ComplianceObligationModal
+          isOpen={showObligationModal}
+          obligation={selectedObligation}
+          onClose={() => {
+            setShowObligationModal(false);
+            setSelectedObligation(null);
+          }}
+          entities={entities}
+          onSaved={() => {
+            router.refresh();
+            setSelectedObligation(null);
+          }}
+        />
       </main>
     </div>
   );

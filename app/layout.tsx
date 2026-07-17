@@ -3,6 +3,7 @@ import './globals.css';
 import SessionProvider from '@/components/auth/SessionProvider';
 import AppShell from '@/components/layout/AppShell';
 import LayoutWrapper from '@/components/layout/LayoutWrapper';
+import { ToastProvider } from '@/components/ui/ToastProvider';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body className="bg-gray-50 antialiased font-sans">
         <SessionProvider>
-          <LayoutWrapper>{children}</LayoutWrapper>
+          <ToastProvider>
+            <LayoutWrapper>{children}</LayoutWrapper>
+          </ToastProvider>
         </SessionProvider>
       </body>
     </html>

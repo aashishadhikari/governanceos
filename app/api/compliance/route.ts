@@ -72,10 +72,17 @@ export async function POST(request: Request) {
         description: body.description,
         dueDate: new Date(body.dueDate),
         submittedDate: body.submittedDate ? new Date(body.submittedDate) : null,
-        status: body.status || 'pending',
         owner: body.owner,
         notes: body.notes,
         recurrence: body.recurrence || 'annual',
+
+        filingReference: body.filingReference,
+        jiraReference: body.jiraReference,
+
+        // New obligations are always created in Pending status.
+        status: 'pending',
+        // Indicates the obligation was created manually via the UI.
+        source: 'manual',
       },
       include: { entity: true },
     });
@@ -91,11 +98,14 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ data: obligation }, { status: 201 });
-  } catch (err) {
-    console.error('[POST /api/compliance]', err);
-    return NextResponse.json(
-      { error: 'Failed to create compliance obligation' },
-      { status: 500 }
-    );
-  }
+  } catch (error) {
+  console.error('Compliance POST Error:', error);
+
+  return NextResponse.json(
+    {
+      error: error instanceof Error ? error.message : 'Internal Server Error',
+    },
+    { status: 500 }
+  );
+}
 }
