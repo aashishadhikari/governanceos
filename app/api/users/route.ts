@@ -16,7 +16,9 @@ import { Prisma } from '@prisma/client';
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
-      orderBy: { email: 'asc' },
+       orderBy: {
+        name: 'asc',
+      },
       select: {
         id: true,
         name: true,

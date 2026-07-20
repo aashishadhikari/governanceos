@@ -1,7 +1,7 @@
 'use client';
 
-import { Fragment, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Header from '@/components/layout/Header';
 import { formatDate, getFlagEmoji } from '@/lib/utils';
 // Modal used for creating and editing compliance obligations
@@ -238,6 +238,8 @@ function UrgencyBar({ days, status }: { days: number; status: ComplianceStatus }
 
 export default function ComplianceClient({ initialObligations, entities }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const notificationId = searchParams.get('id');
   const [statusFilter, setStatusFilter] = useState<'all' | ComplianceStatus>('all');
   const [entityFilter, setEntityFilter] = useState<'all' | string>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<'all' | 'overdue' | '14d' | '30d' | '60d' | '90d'>('all');
@@ -249,11 +251,14 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [importError, setImportError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
   const [clearing, setClearing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const highlightedRowRef = useRef<HTMLTableRowElement>(null);
   const toast = useToast();
+
 
   const handleClearAll = async () => {
     if (!confirm(`This will permanently delete all ${initialObligations.length} compliance obligations. Are you sure?`)) return;
@@ -375,7 +380,24 @@ export default function ComplianceClient({ initialObligations, entities }: Props
 
   const [selectedObligation, setSelectedObligation] =
     useState<ComplianceObligation | null>(null);
+  useEffect(() => {
+    if (!notificationId) return;
 
+    const obligation = initialObligations.find(
+      o => o.id === notificationId
+    );
+
+    if (!obligation) return;
+
+    setExpandedId(obligation.id);
+    setHighlightedId(obligation.id);
+
+    setTimeout(() => {
+      setHighlightedId(null);
+    }, 3000);
+
+    router.replace('/compliance');
+  }, [notificationId, initialObligations, router]);
 
   const entityMap = useMemo(() => {
     const m = new Map<string, Entity>();
@@ -559,7 +581,7 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                 const f = e.dataTransfer.files?.[0];
                 if (f) handleUpload(f);
               }}
-              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
+              className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer hover:border-indigo-500 hover:bg-indigo-50/30 transition-colors"
             >
               <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
               <div className="text-sm text-gray-700 font-medium">
@@ -720,9 +742,18 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                   return (
                     <Fragment key={o.id}>
                       <tr
+                        ref={highlightedId === o.id ? highlightedRowRef : null}
                         onClick={() => setExpandedId(expanded ? null : o.id)}
-                        className={`cursor-pointer transition-colors ${isUrgent ? 'bg-red-50/40 hover:bg-red-50' : 'hover:bg-gray-50'
-                          } ${expanded ? 'bg-indigo-50/30' : ''}`}
+                        className={`cursor-pointer transition-all duration-700 
+                          ${highlightedId === o.id
+                            ? 'bg-indigo-100 border-t-2 border-l-2 border-r-2 border-indigo-500 animate-pulse'
+                            : expanded
+                              ? 'bg-indigo-50/30'
+                              : isUrgent
+                                ? 'bg-red-50/40 hover:bg-red-50'
+                                : 'hover:bg-gray-50'
+                          }
+                        `}
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -816,7 +847,13 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                         </td>
                       </tr>
                       {expanded && (
-                        <tr className="bg-indigo-50/20">
+                        <tr
+                          className={
+                            highlightedId === o.id
+                              ? 'bg-indigo-50 border-l-2 border-r-2 border-b-2 border-indigo-500 animate-pulse'
+                              : 'bg-indigo-50/20'
+                          }
+                        >
                           <td colSpan={8} className="px-6 py-4">
                             <div className="grid grid-cols-4 gap-6 text-sm">
                               <div>

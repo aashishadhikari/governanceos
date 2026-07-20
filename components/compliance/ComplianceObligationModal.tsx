@@ -94,7 +94,13 @@ export default function ComplianceObligationModal({
    * Shows the success confirmation screen after creation.
    */
   const [saved, setSaved] = useState(false);
+  type UserOption = {
+    id: string;
+    name: string;
+    email: string;
+  };
 
+  const [users, setUsers] = useState<UserOption[]>([]);
   const toast = useToast();
 
   useEffect(() => {
@@ -130,6 +136,25 @@ export default function ComplianceObligationModal({
 
     setSaved(false);
   }, [isOpen, obligation]);
+
+  //Added useEffect to load users from the API when the modal is opened
+  useEffect(() => {
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/users/active');
+
+        if (!res.ok) return;
+
+        const users = await res.json();
+
+        setUsers(users);
+      } catch (err) {
+        console.error('Failed to load users', err);
+      }
+    }
+
+    loadUsers();
+  }, []);
 
   /**
    * Generic helper for updating form fields.
@@ -341,10 +366,14 @@ export default function ComplianceObligationModal({
             <FormField
               label="Owner"
             >
-              <Input
-                placeholder="Responsible owner"
+              <Select
                 value={form.owner}
                 onChange={set('owner')}
+                placeholder="Select owner"
+                options={users.map(user => ({
+                  value: user.name,
+                  label: `${user.name} (${user.email})`,
+                }))}
               />
             </FormField>
 
