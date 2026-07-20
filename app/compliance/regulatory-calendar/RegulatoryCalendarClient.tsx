@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Header from '@/components/layout/Header';
-import { getFlagEmoji } from '@/lib/utils';
+import { formatDate, getFlagEmoji } from '@/lib/utils';
 import {
   Upload, RefreshCw, Plus, Pencil, Trash2, X, ChevronDown,
   ChevronRight, Calendar, AlertTriangle, CheckCircle2, Clock3,
@@ -102,7 +102,7 @@ function UrgencyBadge({ dueDate, status }: { dueDate: string; status: string }) 
 }
 
 function formatDue(d: string) {
-  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return formatDate(d);
 }
 
 function parseDri(notes: string | null) {

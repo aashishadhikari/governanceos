@@ -4,16 +4,35 @@ import { twMerge } from 'tailwind-merge';
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
+const APP_LOCALE = 'en-SG';
+const APP_TIMEZONE = 'Asia/Singapore';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function formatDate(date: Date | string | null | undefined): string {
   if (!date) return '—';
-  const d = typeof date === 'string' ? new Date(date) : date;
-  const day = String(d.getUTCDate()).padStart(2, '0');
-  const month = MONTHS[d.getUTCMonth()];
-  const year = d.getUTCFullYear();
-  return `${day} ${month} ${year}`;
+
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    timeZone: APP_TIMEZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(date));
+}
+
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return '—';
+
+  return new Intl.DateTimeFormat(APP_LOCALE, {
+    timeZone: APP_TIMEZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(new Date(date));
 }
 
 export function formatCurrency(amount: number, currency: string): string {
@@ -96,7 +115,7 @@ export function getFlagEmoji(country: string): string {
     'Philippines': '🇵🇭', 'Poland': '🇵🇱', 'Portugal': '🇵🇹',
     'Romania': '🇷🇴', 'Singapore': '🇸🇬', 'South Africa': '🇿🇦',
     'Spain': '🇪🇸', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭',
-    'Thailand': '🇹🇭', 'United Kingdom': '🇬🇧', 'United States': '🇺🇸','Vietnam': '🇻🇳', 'Korea': '🇰🇷',
+    'Thailand': '🇹🇭', 'United Kingdom': '🇬🇧', 'United States': '🇺🇸', 'Vietnam': '🇻🇳', 'Korea': '🇰🇷',
   };
   return flags[country] ?? '🏳️';
 }

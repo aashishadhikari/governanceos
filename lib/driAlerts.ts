@@ -18,6 +18,7 @@
 import prisma from '@/lib/prisma';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { formatDate } from './utils';
 
 interface DriEntry {
   slackId: string;
@@ -148,7 +149,7 @@ function buildSlackBlocks(params: {
     {
       type: 'context',
       elements: [
-        { type: 'mrkdwn', text: `_Sent by EntityOS · Regulatory Calendar · ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}_` },
+        { type: 'mrkdwn', text: `_Sent by iSend Entity Governance System · Calendar · ${formatDate(new Date())}_` },
       ],
     },
   ];
@@ -211,7 +212,7 @@ export async function runDriAlerts(): Promise<DriAlertResult> {
     if (driNames.length === 0) { result.skipped++; continue; }
 
     const entityName = entityMap[ob.entityId] ?? ob.entityId;
-    const dueStr = ob.dueDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    const dueStr = formatDate(ob.dueDate);
 
     for (const driName of driNames) {
       const dri = lookupDri(driName, config.dris);

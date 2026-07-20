@@ -10,6 +10,7 @@ import {
 import type { Entity, Director } from '@/lib/db/schema';
 import type { JurisdictionTemplate } from '@/lib/tor/jurisdictions';
 import type { TorSettings, StoredFile } from '@/app/api/entities/[id]/tor/settings/route';
+import { formatDateTime } from '@/lib/utils';
 
 interface Props {
   entity: Entity;
@@ -444,7 +445,7 @@ export default function TorClient({ entity, directors, template }: Props) {
           <div className="flex items-center gap-3">
             {lastSavedAt && (
               <span className="text-xs text-gray-400">
-                Last saved {new Date(lastSavedAt).toLocaleString()}
+                Last saved {formatDateTime(lastSavedAt)}
               </span>
             )}
             <button

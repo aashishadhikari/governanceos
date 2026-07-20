@@ -6,7 +6,7 @@ import {
   DollarSign, Users, ChevronDown, ChevronRight, X, CheckCircle2,
   FileArchive, File, ExternalLink,
 } from 'lucide-react';
-import { getFlagEmoji } from '@/lib/utils';
+import { formatDateTime, getFlagEmoji } from '@/lib/utils';
 import type { Entity } from '@/lib/db/schema';
 
 // ─── types ──────────────────────────────────────────────────────────────────
@@ -394,7 +394,7 @@ function EntityFolder({ entity, docs }: EntityFolderProps) {
                     </span>
                   </td>
                   <td className="px-4 py-3 w-32 text-xs text-gray-400">
-                    {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                    {doc.uploadedAt ? formatDateTime(doc.uploadedAt) : '—'}
                   </td>
                   <td className="px-4 py-3 w-32 text-xs text-gray-400">{doc.uploadedBy}</td>
                   <td className="px-4 py-3 w-10">
@@ -656,7 +656,7 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
                         <span className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">v{doc.version}</span>
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">
-                        {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                        {doc.uploadedAt ? formatDateTime(doc.uploadedAt) : '—'}
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">{doc.uploadedBy}</td>
                       <td className="px-4 py-3">
