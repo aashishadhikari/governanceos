@@ -405,8 +405,8 @@ export default function RegulatoryCalendarClient({ entities }: { entities: Entit
   return (
     <div>
       <Header
-        title="Regulatory Calendar"
-        subtitle={`${rows.length} filing obligations · ${year}`}
+        title="Calendar"
+        subtitle={`${rows.length} scheduled governance events · ${year}`}
       />
 
       <div className="px-8 py-6 space-y-5">

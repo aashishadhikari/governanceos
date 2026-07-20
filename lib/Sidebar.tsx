@@ -19,16 +19,22 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+
+  {
+    href: '/compliance/regulatory-calendar',
+    label: 'Calendar',
+    icon: Calendar,
+  },
+
   { href: '/entities', label: 'Entities', icon: Building2 },
   { href: '/directors', label: 'Directors', icon: Users },
+
   {
     href: '/compliance',
     label: 'Compliance & Finance',
-    icon: Calendar,
-    children: [
-      { href: '/compliance/regulatory-calendar', label: 'Regulatory Calendar' },
-    ],
+    icon: ClipboardList,
   },
+
   { href: '/licenses', label: 'Licenses', icon: Shield },
   { href: '/capital', label: 'Regulatory Capital', icon: TrendingUp },
   { href: '/alerts', label: 'Alerts', icon: Bell, badge: true },
@@ -39,7 +45,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col shrink-0">
+    <aside className="sticky top-0 h-screen w-64 bg-slate-900 text-white flex flex-col shrink-0">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2.5">
@@ -54,7 +60,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         {navItems.map(({ href, label, icon: Icon, badge, children }) => {
           const isActive = pathname === href || pathname.startsWith(href + '/');
           return (

@@ -15,15 +15,17 @@ import { useState } from 'react';
 import type { UserRole } from '@/lib/db/users';
 import { ROLE_LABELS } from '@/lib/db/users';
 
-const ALL_NAV: { href: string; label: string; icon: React.ElementType; module: string; badge?: boolean; indent?: boolean; exact?: boolean }[] = [
+const ALL_NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'entities' },
   { href: '/entities', label: 'Entities', icon: Building2, module: 'entities' },
   { href: '/org-chart', label: 'Org Chart', icon: GitBranch, module: 'entities' },
   { href: '/directors', label: 'Directors', icon: Users, module: 'directors' },
   { href: '/board-meetings', label: 'Board Meetings', icon: ClipboardList, module: 'meetings' },
-  { href: '/calendar', label: 'Key Dates', icon: Calendar, module: 'compliance' },
-  { href: '/compliance', label: 'Compliance & Finance', icon: Calendar, module: 'compliance', exact: true },
-  { href: '/compliance/regulatory-calendar', label: 'Regulatory Calendar', icon: ClipboardList, module: 'compliance', indent: true },
+
+  { href: '/calendar', label: 'Key Dates', icon: Calendar, module: 'calendar' },
+  { href: '/compliance/regulatory-calendar', label: 'Calendar', icon: Calendar, module: 'compliance' },
+
+  { href: '/compliance', label: 'Compliance & Finance', icon: ClipboardList, module: 'compliance', exact: true },
   { href: '/licenses', label: 'Licenses', icon: Shield, module: 'licenses' },
   { href: '/capital', label: 'Regulatory Capital', icon: TrendingUp, module: 'capital' },
   { href: '/alerts', label: 'Alerts', icon: Bell, module: 'alerts', badge: true },
@@ -70,7 +72,7 @@ export default function Sidebar() {
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'PN';
 
   return (
-    <aside className="w-64 min-h-screen bg-slate-900 text-white flex flex-col shrink-0">
+    <aside className="sticky top-0 h-screen w-64 bg-slate-900 text-white flex flex-col shrink-0">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2.5">
@@ -86,7 +88,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {visibleNav.map(({ href, label, icon: Icon, badge, indent, exact }) => {
+        {visibleNav.map(({ href, label, icon: Icon, badge, exact }) => {
           const isActive = exact
             ? pathname === href
             : pathname === href || pathname.startsWith(href + '/');
@@ -96,7 +98,6 @@ export default function Sidebar() {
               href={href}
               className={cn(
                 'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all group',
-                indent ? 'ml-4 text-xs py-2' : '',
                 isActive
                   ? 'bg-indigo-600 text-white'
                   : 'text-slate-400 hover:bg-slate-800 hover:text-white'

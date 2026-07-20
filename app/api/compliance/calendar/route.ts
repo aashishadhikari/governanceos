@@ -62,14 +62,21 @@ export async function GET(request: Request) {
           SELECT co.*, e.name AS "entityName", e.country AS "entityCountry"
           FROM compliance_obligations co
           JOIN entities e ON e.id = co."entityId"
-          WHERE co.source = 'calendar' AND co."calendarYear" = ${year}
+          WHERE (
+        co.source = 'calendar'
+        OR co.source = 'manual'
+      )
+  AND (
+        co."calendarYear" = ${year}
+        OR EXTRACT(YEAR FROM co."dueDate") = ${year}
+      )
           ORDER BY co."dueDate" ASC
         `
       : await prisma.$queryRaw<Array<Record<string, unknown>>>`
           SELECT co.*, e.name AS "entityName", e.country AS "entityCountry"
           FROM compliance_obligations co
           JOIN entities e ON e.id = co."entityId"
-          WHERE co.source = 'calendar'
+          WHERE co.source IN ('calendar', 'manual')
           ORDER BY co."dueDate" ASC
         `;
 
