@@ -26,15 +26,26 @@ interface Document {
   uploadedAt: string;
 }
 
+type UploadStatus = 'queued' | 'uploading' | 'uploaded' | 'failed';
+
+type UploadItem = {
+  id: string;
+  file: File;
+  status: UploadStatus;
+  progress: number;
+  error?: string;
+  document?: Document;
+};
+
 // ─── constants ───────────────────────────────────────────────────────────────
 
 const CATEGORIES = [
   { key: 'constitutional', label: 'Constitutional', icon: Building2, color: 'bg-indigo-100 text-indigo-700' },
-  { key: 'compliance',     label: 'Compliance',     icon: Shield,    color: 'bg-blue-100 text-blue-700'   },
-  { key: 'license',        label: 'License',        icon: Shield,    color: 'bg-cyan-100 text-cyan-700'   },
-  { key: 'financial',      label: 'Financial',      icon: DollarSign,color: 'bg-green-100 text-green-700' },
-  { key: 'meeting',        label: 'Meeting',        icon: Users,     color: 'bg-purple-100 text-purple-700'},
-  { key: 'other',          label: 'Other',          icon: File,      color: 'bg-gray-100 text-gray-600'   },
+  { key: 'compliance', label: 'Compliance', icon: Shield, color: 'bg-blue-100 text-blue-700' },
+  { key: 'license', label: 'License', icon: Shield, color: 'bg-cyan-100 text-cyan-700' },
+  { key: 'financial', label: 'Financial', icon: DollarSign, color: 'bg-green-100 text-green-700' },
+  { key: 'meeting', label: 'Meeting', icon: Users, color: 'bg-purple-100 text-purple-700' },
+  { key: 'other', label: 'Other', icon: File, color: 'bg-gray-100 text-gray-600' },
 ];
 
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'PNG', 'JPG', 'ZIP', 'OTHER'];
@@ -63,19 +74,19 @@ interface UploadModalProps {
 }
 
 function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [dragOver, setDragOver]         = useState(false);
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [dragOver, setDragOver] = useState(false);
   const [form, setForm] = useState({
-    entityId:   '',
-    name:       '',
-    category:   'constitutional',
-    fileType:   'PDF',
-    uploadedBy: 'Alex Chen',
-    notes:      '',
-    tags:       '',
+    entityId: '',
+    name: '',
+    category: 'constitutional',
+    fileType: 'PDF',
+    uploadedBy: '',
+    notes: '',
+    tags: '',
   });
-  const [saving, setSaving]     = useState(false);
-  const [saved, setSaved]       = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -88,25 +99,42 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
     return FILE_TYPES.includes(ext) ? ext : 'OTHER';
   }
 
-  function applyFile(file: File) {
-    setSelectedFile(file);
+  function applyFiles(files: File[]) {
+    if (files.length === 0) return;
+// make individual upload items for each file, with a unique ID and initial status
+    setUploads(prev => [
+      ...prev,
+      ...files.map(file => ({
+        id: crypto.randomUUID(),
+        file,
+        status: "queued" as const,
+        progress: 0,
+      })),
+    ]);
+
+    // Use the first file to initialise defaults
+    const first = files[0];
+
     setForm(p => ({
       ...p,
-      name:     p.name || file.name.replace(/\.[^.]+$/, ''), // don't overwrite if user typed one
-      fileType: extToType(file.name),
+      name: p.name || first.name.replace(/\.[^.]+$/, ''),
+      fileType: extToType(first.name),
     }));
   }
 
+
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) applyFile(file);
+    const files = e.target.files
+      ? Array.from(e.target.files)
+      : [];
+    applyFiles(files);
   }
 
   function onDrop(e: React.DragEvent) {
     e.preventDefault();
     setDragOver(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) applyFile(file);
+    const files = Array.from(e.dataTransfer.files);
+    applyFiles(files);
   }
 
   async function handleSubmit(ev: React.FormEvent) {
@@ -115,229 +143,317 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
     setSaving(true);
     setUploadPct(0);
     try {
-      let storageUrl: string | null = null;
+      // Upload each selected file and create one document record per file.
+      // Common metadata (entity, category, tags, notes) is reused for every file.
+      for (let i = 0; i < Math.max(uploads.length, 1); i++) {
+        const upload = uploads[i];
+        const file = upload?.file;
+        let storageUrl: string | null = null;
 
-      // 1. Upload the actual file if one was selected
-      if (selectedFile) {
-        setUploadPct(20);
-        const fd = new FormData();
-        fd.append('file', selectedFile);
-        const upRes = await fetch('/api/documents/upload', { method: 'POST', body: fd });
-        if (!upRes.ok) {
-          const upErr = await upRes.json().catch(() => ({}));
-          throw new Error(upErr.error || 'File upload failed');
+        // -----------------------------------------------------------------------
+        // Step 1: Upload the physical file
+        // -----------------------------------------------------------------------
+        if (file) {
+          // First half of the progress bar represents file uploads
+          setUploadPct(Math.round(((i + 1) / uploads.length) * 50));
+
+          const fd = new FormData();
+          fd.append('file', file);
+
+          const uploadResponse = await fetch('/api/documents/upload', {
+            method: 'POST',
+            body: fd,
+          });
+
+          if (!uploadResponse.ok) {
+            const uploadError = await uploadResponse.json().catch(() => ({}));
+            throw new Error(uploadError.error || `Failed to upload "${file.name}"`);
+          }
+
+          const uploadResult = await uploadResponse.json();
+          storageUrl = uploadResult.url;
         }
-        const upJson = await upRes.json();
-        storageUrl = upJson.url;
-        setUploadPct(70);
+
+        // -----------------------------------------------------------------------
+        // Step 2: Save document metadata
+        // Creates one document record for each uploaded file
+        // -----------------------------------------------------------------------
+        const response = await fetch('/api/documents', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            entityId: form.entityId,
+
+            // Use the filename (without extension) as the document name
+            // when uploading files.
+            name: file
+              ? file.name.replace(/\.[^.]+$/, '')
+              : form.name,
+
+            category: form.category,
+
+            // Determine file type from the file extension
+            fileType: file
+              ? extToType(file.name)
+              : form.fileType,
+
+            // Store size in KB
+            fileSize: file
+              ? Math.round(file.size / 1024)
+              : 0,
+
+            notes: form.notes || null,
+
+            tags: form.tags
+              ? form.tags
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(Boolean)
+              : [],
+
+            storageUrl,
+          }),
+        });
+
+        const document = await response.json();
+
+        if (!response.ok) {
+          throw new Error(document.error || 'Failed to save document');
+        }
+
+        // Immediately add the new document to the table
+        onSaved(document);
+
+        // Second half of the progress bar represents metadata creation
+        if (uploads.length > 0) {
+          setUploadPct(
+            50 + Math.round(((i + 1) / uploads.length) * 50)
+          );
+        }
       }
 
-      // 2. Create the metadata record
-      const res = await fetch('/api/documents', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          entityId:   form.entityId,
-          name:       form.name,
-          category:   form.category,
-          fileType:   form.fileType,
-          fileSize:   selectedFile ? Math.round(selectedFile.size / 1024) : 0,
-          uploadedBy: form.uploadedBy,
-          notes:      form.notes || null,
-          tags:       form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-          storageUrl,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to save');
+      // -------------------------------------------------------------------------
+      // All uploads completed successfully
+      // -------------------------------------------------------------------------
       setUploadPct(100);
       setSaved(true);
-      setTimeout(() => { onSaved(json); onClose(); }, 1200);
-    } catch (err) {
+
+      // Close the modal after displaying the success state
+      setTimeout(() => {
+        onClose();
+      }, 1200);
+
+    }
+    catch (err) {
       alert(err instanceof Error ? err.message : 'Failed to save');
     } finally {
       setSaving(false);
     }
   }
+  {
 
-  return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Upload Document</h2>
-            <p className="text-sm text-gray-500">Add a file to the document vault</p>
-          </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
-            <X className="w-4 h-4 text-gray-500" />
-          </button>
-        </div>
-
-        {saved ? (
-          <div className="flex flex-col items-center py-12 gap-3">
-            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle2 className="w-7 h-7 text-green-600" />
+    return (
+      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+            <div>
+              <h2 className="text-lg font-semibold text-gray-900">Upload Document</h2>
+              <p className="text-sm text-gray-500">Add a file to the document vault</p>
             </div>
-            <p className="font-semibold text-green-800">Document uploaded</p>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
           </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
-            {/* ── File drop zone ── */}
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={onDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${
-                dragOver
+          {saved ? (
+            <div className="flex flex-col items-center py-12 gap-3">
+              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+                <CheckCircle2 className="w-7 h-7 text-green-600" />
+              </div>
+              <p className="font-semibold text-green-800">Document uploaded</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+
+              {/* ── File drop zone ── */}
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${dragOver
                   ? 'border-indigo-400 bg-indigo-50'
-                  : selectedFile
+                  : uploads.length > 0
                     ? 'border-green-300 bg-green-50'
                     : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
-              }`}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={onFileChange}
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-              />
-              {selectedFile ? (
-                <div className="flex items-center justify-center gap-3">
-                  {fileIcon(extToType(selectedFile.name))}
-                  <div className="text-left">
-                    <p className="text-sm font-medium text-gray-800">{selectedFile.name}</p>
-                    <p className="text-xs text-gray-400">{formatBytes(selectedFile.size)}</p>
+                  }`}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={onFileChange}
+                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+                />
+                {uploads.length > 0 ? (
+                  <div className="space-y-2">
+                    {uploads.map((item) => {
+                      const file = item.file;
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-3 rounded-lg bg-white border border-gray-200 px-3 py-2"
+                        >
+                          {fileIcon(extToType(file.name))}
+
+                          <div className="flex-1 text-left min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">
+                              {file.name}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {formatBytes(file.size)}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setUploads(items =>
+                                items.filter(upload => upload.id !== item.id)
+                              );
+                            }}
+                            className="p-1 hover:bg-red-100 rounded-full"
+                          >
+                            <X className="w-3.5 h-3.5 text-red-400" />
+                          </button>
+                        </div>
+                      );
+                    })}
+
+                    <p className="text-xs text-gray-500 text-center">
+                      {uploads.length} file{uploads.length > 1 ? 's' : ''} selected
+                    </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setSelectedFile(null); }}
-                    className="ml-2 p-1 hover:bg-red-100 rounded-full"
-                  >
-                    <X className="w-3.5 h-3.5 text-red-400" />
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
-                  <p className="text-sm font-medium text-gray-600">Drop a file here, or <span className="text-indigo-600">browse</span></p>
-                  <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max 50 MB</p>
-                </>
-              )}
-            </div>
-
-            {/* ── Metadata ── */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Document Name <span className="text-red-500">*</span></label>
-                <input
-                  value={form.name} onChange={set('name')} required
-                  placeholder="e.g. Certificate of Incorporation"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Entity <span className="text-red-500">*</span></label>
-                <select
-                  value={form.entityId} onChange={set('entityId')} required
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select entity…</option>
-                  {entities.map(e => (
-                    <option key={e.id} value={e.id}>{e.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
-                  value={form.category} onChange={set('category')}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {CATEGORIES.map(c => (
-                    <option key={c.key} value={c.key}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
-                <select
-                  value={form.fileType} onChange={set('fileType')}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Uploaded By</label>
-                <input
-                  value={form.uploadedBy} onChange={set('uploadedBy')}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
-                <input
-                  value={form.tags} onChange={set('tags')}
-                  placeholder="e.g. 2024, annual, audited"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea
-                value={form.notes} onChange={set('notes')} rows={2}
-                placeholder="Optional context or description"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-              />
-            </div>
-
-            {/* Upload progress bar */}
-            {saving && uploadPct > 0 && (
-              <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
-                  style={{ width: `${uploadPct}%` }}
-                />
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
-                Cancel
-              </button>
-              <button type="submit" disabled={saving}
-                className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
-                {saving ? (
-                  <>
-                    <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {uploadPct < 70 ? 'Uploading…' : 'Saving…'}
-                  </>
                 ) : (
-                  <><Upload className="w-3.5 h-3.5" /> {selectedFile ? 'Upload & Save' : 'Register Document'}</>
+                  <>
+                    <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
+                    <p className="text-sm font-medium text-gray-600">Drop a file here, or <span className="text-indigo-600">browse</span></p>
+                    <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max 50 MB</p>
+                  </>
                 )}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  );
-}
+              </div>
 
+              {/* ── Metadata ── */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Document Name <span className="text-red-500">*</span></label>
+                  <input
+                    value={form.name} onChange={set('name')} required
+                    placeholder="e.g. Certificate of Incorporation"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Entity <span className="text-red-500">*</span></label>
+                  <select
+                    value={form.entityId} onChange={set('entityId')} required
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="">Select entity…</option>
+                    {entities.map(e => (
+                      <option key={e.id} value={e.id}>{e.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                  <select
+                    value={form.category} onChange={set('category')}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {CATEGORIES.map(c => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
+                  <select
+                    value={form.fileType} onChange={set('fileType')}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                  <input
+                    value={form.tags} onChange={set('tags')}
+                    placeholder="e.g. 2024, annual, audited"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea
+                  value={form.notes} onChange={set('notes')} rows={2}
+                  placeholder="Optional context or description"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                />
+              </div>
+
+              {/* Upload progress bar */}
+              {saving && uploadPct > 0 && (
+                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
+                    style={{ width: `${uploadPct}%` }}
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                <button type="button" onClick={onClose}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+                  Cancel
+                </button>
+                <button type="submit" disabled={saving}
+                  className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                  {saving ? (
+                    <>
+                      <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      {uploadPct < 70 ? 'Uploading…' : 'Saving…'}
+                    </>
+                  ) : (
+                    <><Upload className="w-3.5 h-3.5" /> {uploads.length > 1
+                      ? `Upload ${uploads.length} Documents`
+                      : uploads.length === 1
+                        ? 'Upload Document'
+                        : 'Register Document'}</>
+                  )}
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+}
 // ─── Entity Folder Row ────────────────────────────────────────────────────────
 
 interface EntityFolderProps {
@@ -434,11 +550,11 @@ interface Props {
 
 export default function DocumentsClient({ entities, initialDocuments }: Props) {
   const [documents, setDocuments] = useState<Document[]>(initialDocuments);
-  const [search, setSearch]       = useState('');
+  const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [filterEnt, setFilterEnt] = useState('');
   const [showUpload, setShowUpload] = useState(false);
-  const [view, setView]           = useState<'folder' | 'table'>('folder');
+  const [view, setView] = useState<'folder' | 'table'>('folder');
 
   // Filter docs
   const filtered = useMemo(() => {
@@ -493,9 +609,8 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
               <button
                 key={cat.key}
                 onClick={() => setFilterCat(active ? '' : cat.key)}
-                className={`bg-white rounded-xl border p-4 flex items-center gap-3 transition-all text-left ${
-                  active ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-100 hover:border-gray-200'
-                }`}
+                className={`bg-white rounded-xl border p-4 flex items-center gap-3 transition-all text-left ${active ? 'border-indigo-400 ring-2 ring-indigo-200' : 'border-gray-100 hover:border-gray-200'
+                  }`}
               >
                 <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${cat.color}`}>
                   <cat.icon className="w-4 h-4" />
@@ -545,9 +660,8 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`px-3 py-2 text-xs font-medium transition-colors ${
-                  view === v ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+                className={`px-3 py-2 text-xs font-medium transition-colors ${view === v ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
               >
                 {v === 'folder' ? 'Folder View' : 'Table View'}
               </button>
