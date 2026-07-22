@@ -355,6 +355,9 @@ model Document {
   fileName   String?  @map("file_name")
   entity     Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
 
+  deletedAt DateTime?
+  deletedBy String?
+
   @@index([entityId])
   @@index([category])
   @@map("documents")

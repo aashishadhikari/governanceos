@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
       type: file?.type,
     });
     // Reject files larger than the configured upload limit.
-  
+
     if (file && file.size > MAX_UPLOAD_BYTES) {
       return NextResponse.json(
         {
@@ -52,7 +52,15 @@ export async function POST(req: NextRequest) {
     const url = `/uploads/docs/${filename}`;
     // DEBUG: Upload completed successfully.
     console.log('[UPLOAD] Success:', filename);
-    return NextResponse.json({ url, name: file.name, size: file.size }, { status: 201 });
+    return NextResponse.json(
+      {
+        url,
+        name: file.name,
+        filename, // Stored filename on disk for future permanent delete
+        size: file.size,
+      },
+      { status: 201 }
+    );
   } catch (err) {
     console.error("[UPLOAD]", err);
 

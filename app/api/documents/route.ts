@@ -4,14 +4,15 @@ import prisma from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const entityId  = searchParams.get('entityId')  || undefined;
-    const category  = searchParams.get('category')  || undefined;
-    const q         = searchParams.get('q')         || undefined;
+    const entityId = searchParams.get('entityId') || undefined;
+    const category = searchParams.get('category') || undefined;
+    const q = searchParams.get('q') || undefined;
 
     const rows = await prisma.document.findMany({
       where: {
-        ...(entityId  ? { entityId }  : {}),
-        ...(category  ? { category }  : {}),
+        deletedAt: null, // Hide soft-deleted documents from normal listings.
+        ...(entityId ? { entityId } : {}),
+        ...(category ? { category } : {}),
         ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
       },
       orderBy: { uploadedAt: 'desc' },
@@ -19,17 +20,17 @@ export async function GET(req: NextRequest) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return NextResponse.json(rows.map((d: any) => ({
-      id:         d.id,
-      entityId:   d.entityId,
-      name:       d.name,
-      category:   d.category,
-      fileType:   d.fileType,
-      fileSize:   d.fileSize,
+      id: d.id,
+      entityId: d.entityId,
+      name: d.name,
+      category: d.category,
+      fileType: d.fileType,
+      fileSize: d.fileSize,
       uploadedBy: d.uploadedBy,
       storageUrl: d.storageUrl ?? null,
-      version:    d.version,
-      tags:       d.tags,
-      notes:      d.notes ?? null,
+      version: d.version,
+      tags: d.tags,
+      notes: d.notes ?? null,
       uploadedAt: d.uploadedAt instanceof Date ? d.uploadedAt.toISOString() : d.uploadedAt,
     })));
   } catch (err) {
@@ -49,7 +50,11 @@ export async function POST(req: NextRequest) {
 
     // Check if a document with same name exists for same entity → increment version
     const existing = await prisma.document.findFirst({
-      where: { entityId, name },
+      where: {
+        entityId,
+        name,
+        deletedAt: null, // Ignore soft-deleted documents when calculating the next version.
+      },
       orderBy: { version: 'desc' },
     });
     const version = existing ? existing.version + 1 : 1;
@@ -61,11 +66,11 @@ export async function POST(req: NextRequest) {
         fileName,
         category,
         fileType,
-        fileSize:   fileSize    ?? 0,
-        uploadedBy: uploadedBy  ?? 'Unknown',
-        notes:      notes       ?? null,
-        tags:       tags        ?? [],
-        storageUrl: storageUrl  ?? null,
+        fileSize: fileSize ?? 0,
+        uploadedBy: uploadedBy ?? 'Unknown',
+        notes: notes ?? null,
+        tags: tags ?? [],
+        storageUrl: storageUrl ?? null,
         version,
       },
     });
@@ -74,11 +79,11 @@ export async function POST(req: NextRequest) {
     await prisma.auditLog.create({
       data: {
         entityId,
-        action:    'CREATE',
+        action: 'CREATE',
         tableName: 'documents',
-        recordId:  doc.id,
+        recordId: doc.id,
         newValues: { name, category, fileType, version } as object,
-        notes:     `Uploaded by ${uploadedBy ?? 'Unknown'}`,
+        notes: `Uploaded by ${uploadedBy ?? 'Unknown'}`,
       },
     });
 

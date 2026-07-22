@@ -47,10 +47,10 @@ export async function getEntities(): Promise<Entity[]> {
     country: e.country,
     legalStructure: e.legalStructure,
     registrationNumber: e.registrationNumber,
-    registeredAddress: e.registeredAddress,
+    registeredAddress: e.registeredAddress ?? '',
     incorporationDate: iso(e.incorporationDate),
     financialYearEnd: e.financialYearEnd,
-    governingLaw: e.governingLaw,
+    governingLaw: e.governingLaw ?? '',
     auditor: e.auditor ?? '',
     parentEntityId: e.parentEntityId,
     regulator: e.regulator ?? '',
@@ -75,10 +75,10 @@ export async function getEntityById(id: string): Promise<Entity | null> {
     country: e.country,
     legalStructure: e.legalStructure,
     registrationNumber: e.registrationNumber,
-    registeredAddress: e.registeredAddress,
+    registeredAddress: e.registeredAddress  ?? '',
     incorporationDate: iso(e.incorporationDate),
     financialYearEnd: e.financialYearEnd,
-    governingLaw: e.governingLaw,
+    governingLaw: e.governingLaw ?? '',
     auditor: e.auditor ?? '',
     parentEntityId: e.parentEntityId,
     regulator: e.regulator ?? '',
@@ -312,11 +312,19 @@ export async function getAlerts(): Promise<Alert[]> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getDocuments(): Promise<Document[]> {
-  const rows = await prisma.document.findMany({ orderBy: { uploadedAt: 'desc' } });
+  const rows = await prisma.document.findMany({
+    where: {
+      deletedAt: null,
+    },
+    orderBy: {
+      uploadedAt: 'desc',
+    },
+  });
   return rows.map((d) => ({
     id: d.id,
     entityId: d.entityId,
     name: d.name,
+    fileName: d.fileName ?? null,
     category: d.category,
     fileType: d.fileType,
     fileSize: d.fileSize,

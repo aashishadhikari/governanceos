@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   FileText, Upload, Search, FolderOpen, Shield, Building2,
   DollarSign, Users, ChevronDown, ChevronRight, X, CheckCircle2,
-  FileArchive, File, ExternalLink,
+  FileArchive, File, ExternalLink, Trash2,
 } from 'lucide-react';
 import { formatDateTime, getFlagEmoji } from '@/lib/utils';
 import type { Entity } from '@/lib/db/schema';
@@ -536,9 +536,14 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
 interface EntityFolderProps {
   entity: Entity;
   docs: Document[];
+  onDelete: (id: string) => void;
 }
 
-function EntityFolder({ entity, docs }: EntityFolderProps) {
+function EntityFolder({
+  entity,
+  docs,
+  onDelete,
+}: EntityFolderProps) {
   const [open, setOpen] = useState(true);
 
   return (
@@ -595,19 +600,33 @@ function EntityFolder({ entity, docs }: EntityFolderProps) {
                     {doc.uploadedAt ? formatDateTime(doc.uploadedAt) : '—'}
                   </td>
                   <td className="px-4 py-3 w-32 text-xs text-gray-400">{doc.uploadedBy}</td>
-                  <td className="px-4 py-3 w-10">
-                    {doc.storageUrl && (
-                      <a
-                        href={doc.storageUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title="Open / Download"
-                        className="text-indigo-500 hover:text-indigo-700"
-                        onClick={e => e.stopPropagation()}
+                  <td className="px-4 py-3 w-24">
+                    <div className="flex items-center gap-2">
+                      {doc.storageUrl && (
+                        <a
+                          href={doc.storageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open / Download"
+                          className="text-indigo-500 hover:text-indigo-700"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+
+                      <button
+                        type="button"
+                        title="Delete document"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(doc.id);
+                        }}
+                        className="text-red-500 hover:text-red-700"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );
@@ -669,6 +688,30 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
 
   function onDocSaved(doc: Document) {
     setDocuments(prev => [doc, ...prev]);
+  }
+
+  // Soft deletes a document and removes it from the current view.
+  async function handleDelete(id: string) {
+    const confirmed = window.confirm(
+      "Delete this document?\n\nThe document will be removed from active use but can be restored later."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(`/api/documents/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error ?? "Failed to delete document.");
+      }
+
+      setDocuments(prev => prev.filter(doc => doc.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete document.");
+    }
   }
 
   return (
@@ -790,6 +833,7 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
                   key={entity.id}
                   entity={entity}
                   docs={filtered.filter(d => d.entityId === entity.id)}
+                  onDelete={handleDelete}
                 />
               ))
             )}
@@ -861,17 +905,28 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
                       </td>
                       <td className="px-6 py-3 text-gray-500 text-xs">{doc.uploadedBy}</td>
                       <td className="px-4 py-3">
-                        {doc.storageUrl && (
-                          <a
-                            href={doc.storageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Open / Download"
-                            className="text-indigo-500 hover:text-indigo-700"
+                        <div className="flex items-center gap-2">
+                          {doc.storageUrl && (
+                            <a
+                              href={doc.storageUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open / Download"
+                              className="text-indigo-500 hover:text-indigo-700"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+
+                          <button
+                            type="button"
+                            title="Delete document"
+                            onClick={() => handleDelete(doc.id)}
+                            className="text-red-500 hover:text-red-700"
                           >
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        )}
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
