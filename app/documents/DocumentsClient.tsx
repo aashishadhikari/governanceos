@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatDateTime, getFlagEmoji } from '@/lib/utils';
 import type { Entity } from '@/lib/db/schema';
+import DeleteDocumentDialog from "./components/DeleteDocumentDialog";
 
 // ─── types ──────────────────────────────────────────────────────────────────
 
@@ -536,7 +537,7 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
 interface EntityFolderProps {
   entity: Entity;
   docs: Document[];
-  onDelete: (id: string) => void;
+  onDelete: (doc: Document) => void;
 }
 
 function EntityFolder({
@@ -620,7 +621,7 @@ function EntityFolder({
                         title="Delete document"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onDelete(doc.id);
+                          onDelete(doc);
                         }}
                         className="text-red-500 hover:text-red-700"
                       >
@@ -656,6 +657,9 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
   const [filterEnt, setFilterEnt] = useState('');
   const [showUpload, setShowUpload] = useState(false);
   const [view, setView] = useState<'folder' | 'table'>('folder');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Filter docs
   const filtered = useMemo(() => {
@@ -691,15 +695,18 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
   }
 
   // Soft deletes a document and removes it from the current view.
-  async function handleDelete(id: string) {
-    const confirmed = window.confirm(
-      "Delete this document?\n\nThe document will be removed from active use but can be restored later."
-    );
+  function handleDelete(doc: Document) {
+    setSelectedDocument(doc);
+    setShowDeleteDialog(true);
+  }
 
-    if (!confirmed) return;
+  async function confirmDelete() {
+    if (!selectedDocument) return;
+
+    setIsDeleting(true);
 
     try {
-      const response = await fetch(`/api/documents/${id}`, {
+      const response = await fetch(`/api/documents/${selectedDocument.id}`, {
         method: "DELETE",
       });
 
@@ -708,9 +715,16 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
         throw new Error(error.error ?? "Failed to delete document.");
       }
 
-      setDocuments(prev => prev.filter(doc => doc.id !== id));
+      setDocuments(prev =>
+        prev.filter(doc => doc.id !== selectedDocument.id)
+      );
+
+      setShowDeleteDialog(false);
+      setSelectedDocument(null);
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete document.");
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -921,7 +935,7 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
                           <button
                             type="button"
                             title="Delete document"
-                            onClick={() => handleDelete(doc.id)}
+                            onClick={() => handleDelete(doc)}
                             className="text-red-500 hover:text-red-700"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -945,6 +959,16 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
           </p>
         </div>
       </div>
+      <DeleteDocumentDialog
+        open={showDeleteDialog}
+        documentName={selectedDocument?.name}
+        loading={isDeleting}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setSelectedDocument(null);
+        }}
+        onConfirm={confirmDelete}
+      />
     </>
   );
 }
