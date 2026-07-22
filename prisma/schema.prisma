@@ -251,7 +251,7 @@ model ComplianceObligation {
   updatedAt       DateTime         @updatedAt
   calendarYear    Int?
   source          String           @default("manual")
-  jiraReference   String? @map("jira_reference")
+  jiraReference   String?          @map("jira_reference")
   entity          Entity           @relation(fields: [entityId], references: [id], onDelete: Cascade)
 
   @@index([entityId])
@@ -352,6 +352,7 @@ model Document {
   uploadedAt DateTime @default(now())
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  fileName   String?  @map("file_name")
   entity     Entity   @relation(fields: [entityId], references: [id], onDelete: Cascade)
 
   @@index([entityId])

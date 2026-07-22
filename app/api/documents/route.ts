@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { entityId, name, category, fileType, fileSize, uploadedBy, notes, tags, storageUrl } = body;
+    const { entityId, name, fileName, category, fileType, fileSize, uploadedBy, notes, tags, storageUrl } = body;
 
     if (!entityId || !name || !category || !fileType) {
       return NextResponse.json({ error: 'entityId, name, category, and fileType are required' }, { status: 400 });
@@ -58,6 +58,7 @@ export async function POST(req: NextRequest) {
       data: {
         entityId,
         name,
+        fileName,
         category,
         fileType,
         fileSize:   fileSize    ?? 0,

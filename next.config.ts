@@ -2,11 +2,14 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  output: "standalone",
+
+  experimental: {
+    proxyClientMaxBodySize: "100mb",
+  },
+
   turbopack: {
-    // Fix: Next.js 16 detected a stale package-lock.json in the home directory
-    // and incorrectly set it as the workspace root. Explicitly setting root here
-    // pins resolution to this project folder, fixing the tailwindcss lookup error.
+    // Fix: Next.js 16 detected a stale package-lock.json in the home directory.
     root: path.resolve(__dirname),
   },
 };

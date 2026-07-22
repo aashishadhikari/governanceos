@@ -15,6 +15,7 @@ interface Document {
   id: string;
   entityId: string;
   name: string;
+  fileName: string | null; // Original uploaded filename (without extension)
   category: string;
   fileType: string;
   fileSize: number;
@@ -47,7 +48,7 @@ const CATEGORIES = [
   { key: 'meeting', label: 'Meeting', icon: Users, color: 'bg-purple-100 text-purple-700' },
   { key: 'other', label: 'Other', icon: File, color: 'bg-gray-100 text-gray-600' },
 ];
-
+const MAX_UPLOAD_MB = Number(process.env.NEXT_PUBLIC_MAX_DOCUMENT_UPLOAD_MB ?? 50);
 const FILE_TYPES = ['PDF', 'DOCX', 'XLSX', 'PNG', 'JPG', 'ZIP', 'OTHER'];
 
 function formatBytes(bytes: number): string {
@@ -101,7 +102,7 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
 
   function applyFiles(files: File[]) {
     if (files.length === 0) return;
-// make individual upload items for each file, with a unique ID and initial status
+    // make individual upload items for each file, with a unique ID and initial status
     setUploads(prev => [
       ...prev,
       ...files.map(file => ({
@@ -136,18 +137,37 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
     const files = Array.from(e.dataTransfer.files);
     applyFiles(files);
   }
-
+  function updateUpload(
+    id: string,
+    changes: Partial<UploadItem>
+  ) {
+    setUploads(items =>
+      items.map(item =>
+        item.id === id
+          ? { ...item, ...changes }
+          : item
+      )
+    );
+  }
   async function handleSubmit(ev: React.FormEvent) {
     ev.preventDefault();
     if (!form.entityId || !form.name) return;
     setSaving(true);
     setUploadPct(0);
+    let successCount = 0;
+    let failedCount = 0;
     try {
       // Upload each selected file and create one document record per file.
       // Common metadata (entity, category, tags, notes) is reused for every file.
       for (let i = 0; i < Math.max(uploads.length, 1); i++) {
         const upload = uploads[i];
         const file = upload?.file;
+        if (!upload) continue;
+        // Mark the current file as uploading before starting network requests.
+        updateUpload(upload.id, {
+          status: "uploading",
+          progress: 0,
+        });
         let storageUrl: string | null = null;
 
         // -----------------------------------------------------------------------
@@ -167,11 +187,25 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
 
           if (!uploadResponse.ok) {
             const uploadError = await uploadResponse.json().catch(() => ({}));
-            throw new Error(uploadError.error || `Failed to upload "${file.name}"`);
-          }
 
+            updateUpload(upload.id, {
+              status: "failed",
+              error: uploadError.error || "Upload failed",
+            });
+
+            failedCount++;
+
+            continue;
+          }
+          // File upload completed successfully; metadata creation is next.
+          updateUpload(upload.id, {
+            progress: 50,
+          });
           const uploadResult = await uploadResponse.json();
           storageUrl = uploadResult.url;
+          updateUpload(upload.id, {
+            progress: 50,
+          });
         }
 
         // -----------------------------------------------------------------------
@@ -186,11 +220,13 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
           body: JSON.stringify({
             entityId: form.entityId,
 
-            // Use the filename (without extension) as the document name
-            // when uploading files.
-            name: file
+            // Business document name entered by the user
+            name: form.name,
+
+            // Original uploaded filename (without extension)
+            fileName: file
               ? file.name.replace(/\.[^.]+$/, '')
-              : form.name,
+              : null,
 
             category: form.category,
 
@@ -219,12 +255,25 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
 
         const document = await response.json();
 
-        if (!response.ok) {
-          throw new Error(document.error || 'Failed to save document');
-        }
 
-        // Immediately add the new document to the table
+        if (!response.ok) {
+          // Metadata save failed; record the error and continue with remaining files.
+          updateUpload(upload.id, {
+            status: "failed",
+            error: document.error || "Failed to save document",
+          });
+
+          failedCount++;
+
+          continue;
+        }
         onSaved(document);
+        // Metadata saved successfully; mark this upload as complete.
+        updateUpload(upload.id, {
+          status: "uploaded",
+          progress: 100,
+          document,
+        });
 
         // Second half of the progress bar represents metadata creation
         if (uploads.length > 0) {
@@ -238,12 +287,14 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
       // All uploads completed successfully
       // -------------------------------------------------------------------------
       setUploadPct(100);
-      setSaved(true);
 
-      // Close the modal after displaying the success state
-      setTimeout(() => {
-        onClose();
-      }, 1200);
+      if (failedCount === 0) {
+        setSaved(true);
+
+        setTimeout(() => {
+          onClose();
+        }, 1200);
+      }
 
     }
     catch (err) {
@@ -259,8 +310,15 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
         <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
           <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">Upload Document</h2>
-              <p className="text-sm text-gray-500">Add a file to the document vault</p>
+              <h2 className="text-lg font-semibold text-gray-900">
+                {saved ? "Upload Complete" : "Upload Document"}
+              </h2>
+
+              {!saved && (
+                <p className="text-sm text-gray-500">
+                  Add a file to the document vault
+                </p>
+              )}
             </div>
             <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
               <X className="w-4 h-4 text-gray-500" />
@@ -314,9 +372,28 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
                             <p className="text-sm font-medium text-gray-800 truncate">
                               {file.name}
                             </p>
+
                             <p className="text-xs text-gray-400">
                               {formatBytes(file.size)}
                             </p>
+
+                            {item.status === "uploading" && (
+                              <p className="text-xs text-blue-600">
+                                Uploading...
+                              </p>
+                            )}
+
+                            {item.status === "uploaded" && (
+                              <p className="text-xs text-green-600">
+                                Uploaded
+                              </p>
+                            )}
+
+                            {item.status === "failed" && (
+                              <p className="text-xs text-red-600">
+                                {item.error}
+                              </p>
+                            )}
                           </div>
 
                           <button
@@ -343,7 +420,7 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
                   <>
                     <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
                     <p className="text-sm font-medium text-gray-600">Drop a file here, or <span className="text-indigo-600">browse</span></p>
-                    <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max 50 MB</p>
+                    <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max {MAX_UPLOAD_MB} MB</p>
                   </>
                 )}
               </div>
@@ -486,9 +563,14 @@ function EntityFolder({ entity, docs }: EntityFolderProps) {
               return (
                 <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-3 pl-12">
-                    <div className="flex items-center gap-2">
-                      {fileIcon(doc.fileType)}
-                      <span className="font-medium text-gray-800">{doc.name}</span>
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {doc.name}
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        {fileIcon(doc.fileType)}
+                        <span>{doc.fileName ?? doc.name}</span>
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 w-36">
@@ -742,9 +824,14 @@ export default function DocumentsClient({ entities, initialDocuments }: Props) {
                   return (
                     <tr key={doc.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-3">
-                        <div className="flex items-center gap-2">
-                          {fileIcon(doc.fileType)}
-                          <span className="font-medium text-gray-900">{doc.name}</span>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {doc.name}
+                          </p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                            {fileIcon(doc.fileType)}
+                            <span>{doc.fileName ?? doc.name}</span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-3">
