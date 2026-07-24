@@ -115,7 +115,7 @@ export function getFlagEmoji(country: string): string {
     'Philippines': '🇵🇭', 'Poland': '🇵🇱', 'Portugal': '🇵🇹',
     'Romania': '🇷🇴', 'Singapore': '🇸🇬', 'South Africa': '🇿🇦',
     'Spain': '🇪🇸', 'Sweden': '🇸🇪', 'Switzerland': '🇨🇭',
-    'Thailand': '🇹🇭', 'United Kingdom': '🇬🇧', 'United States': '🇺🇸', 'Vietnam': '🇻🇳', 'Korea': '🇰🇷',
+    'Thailand': '🇹🇭', 'United Kingdom': '🇬🇧', 'United States': '🇺🇸', 'Vietnam': '🇻🇳', 'Korea': '🇰🇷','Nepal': '🇳🇵',
   };
   return flags[country] ?? '🏳️';
 }

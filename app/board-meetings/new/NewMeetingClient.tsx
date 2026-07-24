@@ -69,7 +69,7 @@ const DEFAULT_FORM: FormData = {
   location: '',
   virtualLink: '',
   chair: '',
-  owner: 'Alex Chen',
+  owner: 'input owner name here',
   quorumRequired: 3,
   agenda: '',
   recurrence: 'none',
@@ -90,7 +90,7 @@ function buildInitialForm(
 ): FormData {
   if (!editMeeting) return DEFAULT_FORM;
   // Extract owner from createdBy field
-  const owner = editMeeting.createdBy || 'Alex Chen';
+  const owner = editMeeting.createdBy || 'input owner name here';
   return {
     entityId: editMeeting.entityId,
     meetingType: editMeeting.meetingType,
@@ -160,7 +160,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
         recurrence:       form.recurrence,
         invitedDirectors: form.invitedDirectors,
         asDraft,
-        createdBy:        form.owner || 'Alex Chen',
+        createdBy:        form.owner || 'input owner name here',
       };
 
       let res: Response;
@@ -378,7 +378,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 type="text"
                 value={form.chair}
                 onChange={e => set('chair', e.target.value)}
-                placeholder="e.g. Alex Chen"
+                placeholder="e.g. John Doe"
                 className={cn(
                   'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300',
                   errors.chair ? 'border-red-300' : 'border-slate-200'
@@ -392,7 +392,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 type="text"
                 value={form.owner}
                 onChange={e => set('owner', e.target.value)}
-                placeholder="e.g. Alex Chen"
+                placeholder="e.g. John Doe"
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>

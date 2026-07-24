@@ -44,7 +44,8 @@ function EntityNode({ entity, entities, depth = 0, defaultOpen = true }: {
         <div className={`flex-1 flex items-center gap-3 bg-white border rounded-lg px-3 py-2 hover:shadow-sm transition-all hover:border-indigo-300 ${
           entity.status === 'dissolved' ? 'opacity-50' : ''
         }`}>
-          <span className="text-xl">{getFlagEmoji(entity.country)}</span>
+          {/* <span className="text-xl">{getFlagEmoji(entity.country)}</span> */}
+          <span className="text-xl">🇸🇬</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-semibold text-gray-900 truncate">{entity.name}</p>

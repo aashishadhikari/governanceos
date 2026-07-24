@@ -383,7 +383,7 @@ Make sure `NEXTAUTH_URL` exactly matches the URL you're accessing (including `ht
 | `viewer` | Dashboard and Entities (read-only) |
 
 Default demo credentials (auth disabled):
-- Signed in as **Alex Chen** (`super_admin`)
+- Signed in as **John Doe** (`super_admin`)
 - All features unlocked
 
 ---

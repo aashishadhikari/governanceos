@@ -159,7 +159,7 @@ const NATIONALITY_OPTIONS: { value: string; label: string }[] = [
   'Polish', 'Portuguese', 'Qatari', 'Romanian', 'Russian', 'Saudi', 'Singaporean',
   'Slovak', 'Slovenian', 'South African', 'South Korean', 'Spanish', 'Sri Lankan',
   'Swedish', 'Swiss', 'Taiwanese', 'Thai', 'Turkish', 'Ukrainian', 'Uruguayan',
-  'Venezuelan', 'Vietnamese',
+  'Venezuelan', 'Vietnamese','Nepalese',
 ].map(n => ({ value: n, label: n }));
 
 const KNOWN_ROLES = new Set(ROLE_OPTIONS.map(o => o.value).filter(v => v !== '__other__'));
