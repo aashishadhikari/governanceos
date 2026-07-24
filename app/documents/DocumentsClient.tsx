@@ -9,6 +9,8 @@ import {
 import { formatDateTime, getFlagEmoji } from '@/lib/utils';
 import type { Entity } from '@/lib/db/schema';
 import DeleteDocumentDialog from "./components/DeleteDocumentDialog";
+import UploadSummaryDialog from "./components/UploadSummaryDialog";
+
 
 // ─── types ──────────────────────────────────────────────────────────────────
 
@@ -88,9 +90,11 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
     tags: '',
   });
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [uploadPct, setUploadPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Controls the upload summary dialog shown after the upload process finishes.
+  // Replaces the old auto-close success screen and displays uploaded/failed files.
+  const [showSummary, setShowSummary] = useState(false);
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }));
@@ -289,13 +293,17 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
       // -------------------------------------------------------------------------
       setUploadPct(100);
 
-      if (failedCount === 0) {
-        setSaved(true);
-
-        setTimeout(() => {
-          onClose();
-        }, 1200);
-      }
+      // -------------------------------------------------------------------------
+      // Upload process finished.
+      // Instead of automatically closing the dialog, present a summary so users
+      // can review which files uploaded successfully and which failed.
+      // -------------------------------------------------------------------------
+      // -------------------------------------------------------------------------
+      // Upload process finished.
+      // Show the summary dialog regardless of success or failure so the user can
+      // review the outcome of every selected file.
+      // -------------------------------------------------------------------------
+      setShowSummary(true);
 
     }
     catch (err) {
@@ -307,228 +315,232 @@ function UploadModal({ entities, onClose, onSaved }: UploadModalProps) {
   {
 
     return (
-      <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {saved ? "Upload Complete" : "Upload Document"}
-              </h2>
+      <>
 
-              {!saved && (
-                <p className="text-sm text-gray-500">
-                  Add a file to the document vault
-                </p>
-              )}
-            </div>
-            <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
-              <X className="w-4 h-4 text-gray-500" />
-            </button>
-          </div>
+        {/* --------------------------------------------------------------------- */}
+        {/* Upload Summary Dialog                                                 */}
+        {/* Displayed after the upload process completes so users can review      */}
+        {/* which files uploaded successfully and which failed.                   */}
+        {/* --------------------------------------------------------------------- */}
+        <UploadSummaryDialog
+          open={showSummary}
+          uploads={uploads}
+          onClose={() => {
+            setShowSummary(false);
+            onClose();
+          }}
+        />
 
-          {saved ? (
-            <div className="flex flex-col items-center py-12 gap-3">
-              <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
-                <CheckCircle2 className="w-7 h-7 text-green-600" />
+        {!showSummary && (
+          <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
+              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div>
+
+
+                </div>
+                <button onClick={onClose} className="p-1.5 hover:bg-gray-100 rounded-lg">
+                  <X className="w-4 h-4 text-gray-500" />
+                </button>
               </div>
-              <p className="font-semibold text-green-800">Document uploaded</p>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
-              {/* ── File drop zone ── */}
-              <div
-                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={onDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${dragOver
-                  ? 'border-indigo-400 bg-indigo-50'
-                  : uploads.length > 0
-                    ? 'border-green-300 bg-green-50'
-                    : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
-                  }`}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={onFileChange}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
-                />
-                {uploads.length > 0 ? (
-                  <div className="space-y-2">
-                    {uploads.map((item) => {
-                      const file = item.file;
+              <form onSubmit={handleSubmit} className="p-6 space-y-4">
 
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex items-center gap-3 rounded-lg bg-white border border-gray-200 px-3 py-2"
-                        >
-                          {fileIcon(extToType(file.name))}
+                {/* ── File drop zone ── */}
+                <div
+                  onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={onDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-colors ${dragOver
+                    ? 'border-indigo-400 bg-indigo-50'
+                    : uploads.length > 0
+                      ? 'border-green-300 bg-green-50'
+                      : 'border-gray-200 hover:border-indigo-300 hover:bg-gray-50'
+                    }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={onFileChange}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.zip"
+                  />
+                  {uploads.length > 0 ? (
+                    <div className="space-y-2">
+                      {uploads.map((item) => {
+                        const file = item.file;
 
-                          <div className="flex-1 text-left min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">
-                              {file.name}
-                            </p>
-
-                            <p className="text-xs text-gray-400">
-                              {formatBytes(file.size)}
-                            </p>
-
-                            {item.status === "uploading" && (
-                              <p className="text-xs text-blue-600">
-                                Uploading...
-                              </p>
-                            )}
-
-                            {item.status === "uploaded" && (
-                              <p className="text-xs text-green-600">
-                                Uploaded
-                              </p>
-                            )}
-
-                            {item.status === "failed" && (
-                              <p className="text-xs text-red-600">
-                                {item.error}
-                              </p>
-                            )}
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setUploads(items =>
-                                items.filter(upload => upload.id !== item.id)
-                              );
-                            }}
-                            className="p-1 hover:bg-red-100 rounded-full"
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center gap-3 rounded-lg bg-white border border-gray-200 px-3 py-2"
                           >
-                            <X className="w-3.5 h-3.5 text-red-400" />
-                          </button>
-                        </div>
-                      );
-                    })}
+                            {fileIcon(extToType(file.name))}
 
-                    <p className="text-xs text-gray-500 text-center">
-                      {uploads.length} file{uploads.length > 1 ? 's' : ''} selected
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
-                    <p className="text-sm font-medium text-gray-600">Drop a file here, or <span className="text-indigo-600">browse</span></p>
-                    <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max {MAX_UPLOAD_MB} MB</p>
-                  </>
-                )}
-              </div>
+                            <div className="flex-1 text-left min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                {file.name}
+                              </p>
 
-              {/* ── Metadata ── */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Document Name <span className="text-red-500">*</span></label>
-                  <input
-                    value={form.name} onChange={set('name')} required
-                    placeholder="e.g. Certificate of Incorporation"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+                              <p className="text-xs text-gray-400">
+                                {formatBytes(file.size)}
+                              </p>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Entity <span className="text-red-500">*</span></label>
-                  <select
-                    value={form.entityId} onChange={set('entityId')} required
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    <option value="">Select entity…</option>
-                    {entities.map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
-                  </select>
-                </div>
+                              {item.status === "uploading" && (
+                                <p className="text-xs text-blue-600">
+                                  Uploading...
+                                </p>
+                              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                  <select
-                    value={form.category} onChange={set('category')}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {CATEGORIES.map(c => (
-                      <option key={c.key} value={c.key}>{c.label}</option>
-                    ))}
-                  </select>
-                </div>
+                              {item.status === "uploaded" && (
+                                <p className="text-xs text-green-600">
+                                  Uploaded
+                                </p>
+                              )}
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
-                  <select
-                    value={form.fileType} onChange={set('fileType')}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  >
-                    {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
-                  </select>
-                </div>
+                              {item.status === "failed" && (
+                                <p className="text-xs text-red-600">
+                                  {item.error}
+                                </p>
+                              )}
+                            </div>
 
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
-                  <input
-                    value={form.tags} onChange={set('tags')}
-                    placeholder="e.g. 2024, annual, audited"
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setUploads(items =>
+                                  items.filter(upload => upload.id !== item.id)
+                                );
+                              }}
+                              className="p-1 hover:bg-red-100 rounded-full"
+                            >
+                              <X className="w-3.5 h-3.5 text-red-400" />
+                            </button>
+                          </div>
+                        );
+                      })}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                <textarea
-                  value={form.notes} onChange={set('notes')} rows={2}
-                  placeholder="Optional context or description"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                />
-              </div>
-
-              {/* Upload progress bar */}
-              {saving && uploadPct > 0 && (
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
-                    style={{ width: `${uploadPct}%` }}
-                  />
-                </div>
-              )}
-
-              <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
-                <button type="button" onClick={onClose}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
-                  Cancel
-                </button>
-                <button type="submit" disabled={saving}
-                  className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
-                  {saving ? (
-                    <>
-                      <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      {uploadPct < 70 ? 'Uploading…' : 'Saving…'}
-                    </>
+                      <p className="text-xs text-gray-500 text-center">
+                        {uploads.length} file{uploads.length > 1 ? 's' : ''} selected
+                      </p>
+                    </div>
                   ) : (
-                    <><Upload className="w-3.5 h-3.5" /> {uploads.length > 1
-                      ? `Upload ${uploads.length} Documents`
-                      : uploads.length === 1
-                        ? 'Upload Document'
-                        : 'Register Document'}</>
+                    <>
+                      <Upload className="w-7 h-7 text-gray-300 mx-auto mb-1.5" />
+                      <p className="text-sm font-medium text-gray-600">Drop a file here, or <span className="text-indigo-600">browse</span></p>
+                      <p className="text-xs text-gray-400 mt-0.5">PDF, DOCX, XLSX, PNG, ZIP · max {MAX_UPLOAD_MB} MB</p>
+                    </>
                   )}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
+                </div>
+
+                {/* ── Metadata ── */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Document Name <span className="text-red-500">*</span></label>
+                    <input
+                      value={form.name} onChange={set('name')} required
+                      placeholder="e.g. Certificate of Incorporation"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Entity <span className="text-red-500">*</span></label>
+                    <select
+                      value={form.entityId} onChange={set('entityId')} required
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="">Select entity…</option>
+                      {entities.map(e => (
+                        <option key={e.id} value={e.id}>{e.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select
+                      value={form.category} onChange={set('category')}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {CATEGORIES.map(c => (
+                        <option key={c.key} value={c.key}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">File Type</label>
+                    <select
+                      value={form.fileType} onChange={set('fileType')}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {FILE_TYPES.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma-separated)</label>
+                    <input
+                      value={form.tags} onChange={set('tags')}
+                      placeholder="e.g. 2024, annual, audited"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                  <textarea
+                    value={form.notes} onChange={set('notes')} rows={2}
+                    placeholder="Optional context or description"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  />
+                </div>
+
+                {/* Upload progress bar */}
+                {saving && uploadPct > 0 && (
+                  <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
+                      style={{ width: `${uploadPct}%` }}
+                    />
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-3 pt-2 border-t border-gray-100">
+                  <button type="button" onClick={onClose}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={saving}
+                    className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 flex items-center gap-2">
+                    {saving ? (
+                      <>
+                        <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        {uploadPct < 70 ? 'Uploading…' : 'Saving…'}
+                      </>
+                    ) : (
+                      <><Upload className="w-3.5 h-3.5" /> {uploads.length > 1
+                        ? `Upload ${uploads.length} Documents`
+                        : uploads.length === 1
+                          ? 'Upload Document'
+                          : 'Register Document'}</>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+      </>
     );
   }
 }
