@@ -19,26 +19,26 @@ const MEETING_TYPES = [
 ];
 
 const TIMEZONES = [
-  { label: 'Singapore (SGT)',        value: 'Asia/Singapore' },
-  { label: 'London (GMT/BST)',       value: 'Europe/London' },
-  { label: 'Amsterdam (CET/CEST)',   value: 'Europe/Amsterdam' },
-  { label: 'Vilnius (EET/EEST)',     value: 'Europe/Vilnius' },
-  { label: 'Malta (CET/CEST)',       value: 'Europe/Malta' },
+  { label: 'Singapore (SGT)', value: 'Asia/Singapore' },
+  { label: 'London (GMT/BST)', value: 'Europe/London' },
+  { label: 'Amsterdam (CET/CEST)', value: 'Europe/Amsterdam' },
+  { label: 'Vilnius (EET/EEST)', value: 'Europe/Vilnius' },
+  { label: 'Malta (CET/CEST)', value: 'Europe/Malta' },
   { label: 'Mumbai / Kolkata (IST)', value: 'Asia/Kolkata' },
-  { label: 'Kuala Lumpur (MYT)',     value: 'Asia/Kuala_Lumpur' },
-  { label: 'Tokyo (JST)',            value: 'Asia/Tokyo' },
-  { label: 'Hong Kong (HKT)',        value: 'Asia/Hong_Kong' },
-  { label: 'Jakarta (WIB)',          value: 'Asia/Jakarta' },
-  { label: 'New York (ET)',          value: 'America/New_York' },
-  { label: 'São Paulo (BRT)',        value: 'America/Sao_Paulo' },
-  { label: 'Toronto (ET)',           value: 'America/Toronto' },
-  { label: 'Auckland (NZST)',        value: 'Pacific/Auckland' },
+  { label: 'Kuala Lumpur (MYT)', value: 'Asia/Kuala_Lumpur' },
+  { label: 'Tokyo (JST)', value: 'Asia/Tokyo' },
+  { label: 'Hong Kong (HKT)', value: 'Asia/Hong_Kong' },
+  { label: 'Jakarta (WIB)', value: 'Asia/Jakarta' },
+  { label: 'New York (ET)', value: 'America/New_York' },
+  { label: 'São Paulo (BRT)', value: 'America/Sao_Paulo' },
+  { label: 'Toronto (ET)', value: 'America/Toronto' },
+  { label: 'Auckland (NZST)', value: 'Pacific/Auckland' },
 ];
 
 const RECURRENCE = [
-  { label: 'None (one-time)',  value: 'none' },
-  { label: 'Quarterly',       value: 'quarterly' },
-  { label: 'Annual',          value: 'annual' },
+  { label: 'None (one-time)', value: 'none' },
+  { label: 'Quarterly', value: 'quarterly' },
+  { label: 'Annual', value: 'annual' },
 ];
 
 interface FormData {
@@ -69,7 +69,7 @@ const DEFAULT_FORM: FormData = {
   location: '',
   virtualLink: '',
   chair: '',
-  owner: 'input owner name here',
+  owner: '',
   quorumRequired: 3,
   agenda: '',
   recurrence: 'none',
@@ -90,7 +90,7 @@ function buildInitialForm(
 ): FormData {
   if (!editMeeting) return DEFAULT_FORM;
   // Extract owner from createdBy field
-  const owner = editMeeting.createdBy || 'input owner name here';
+  const owner = editMeeting.createdBy || '';
   return {
     entityId: editMeeting.entityId,
     meetingType: editMeeting.meetingType,
@@ -113,9 +113,9 @@ function buildInitialForm(
 export default function NewMeetingClient({ entities, directors, editMeeting, editAttendees }: Props) {
   const router = useRouter();
   const isEdit = !!editMeeting;
-  const [form, setForm]     = useState<FormData>(() => buildInitialForm(editMeeting, editAttendees));
+  const [form, setForm] = useState<FormData>(() => buildInitialForm(editMeeting, editAttendees));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved]   = useState(false);
+  const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) =>
@@ -132,10 +132,10 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
 
   function validate(): boolean {
     const e: typeof errors = {};
-    if (!form.entityId)    e.entityId    = 'Please select an entity';
+    if (!form.entityId) e.entityId = 'Please select an entity';
     if (!form.meetingDate) e.meetingDate = 'Please select a date';
-    if (!form.chair)       e.chair       = 'Chair is required';
-    if (!form.agenda)      e.agenda      = 'Agenda is required';
+    if (!form.chair) e.chair = 'Chair is required';
+    if (!form.agenda) e.agenda = 'Agenda is required';
     if (!form.location && form.locationType !== 'virtual') e.location = 'Location is required';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -146,21 +146,21 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
     setSaving(true);
     try {
       const payload = {
-        entityId:         form.entityId,
-        meetingType:      form.meetingType,
-        meetingDate:      form.meetingDate,
-        meetingTime:      form.meetingTime,
-        timezone:         form.timezone,
-        locationType:     form.locationType,
-        location:         form.location || null,
-        virtualLink:      form.virtualLink || null,
-        chair:            form.chair,
-        quorumRequired:   form.quorumRequired,
-        agenda:           form.agenda,
-        recurrence:       form.recurrence,
+        entityId: form.entityId,
+        meetingType: form.meetingType,
+        meetingDate: form.meetingDate,
+        meetingTime: form.meetingTime,
+        timezone: form.timezone,
+        locationType: form.locationType,
+        location: form.location || null,
+        virtualLink: form.virtualLink || null,
+        chair: form.chair,
+        quorumRequired: form.quorumRequired,
+        agenda: form.agenda,
+        recurrence: form.recurrence,
         invitedDirectors: form.invitedDirectors,
         asDraft,
-        createdBy:        form.owner || 'input owner name here',
+        createdBy: form.owner || null,
       };
 
       let res: Response;
@@ -206,32 +206,49 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
   }
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <Link href="/board-meetings" className="text-slate-400 hover:text-slate-600 transition-colors">
-          <ArrowLeft className="w-5 h-5" />
+      <div className="space-y-2">
+        <Link
+          href="/board-meetings"
+          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to Board Meetings
         </Link>
+
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{isEdit ? 'Edit Board Meeting' : 'Schedule Board Meeting'}</h1>
-          <p className="text-sm text-slate-500">{isEdit ? 'Update the details for this meeting' : 'Fill in the details to create a new meeting'}</p>
+          <h1 className="text-3xl font-bold text-slate-900">
+            {isEdit ? 'Edit Board Meeting' : 'Schedule Board Meeting'}
+          </h1>
+
+          <p className="mt-1 text-sm text-slate-500">
+            {isEdit
+              ? 'Update meeting details, participants, and governance information.'
+              : 'Create a new board meeting, invite participants, and manage governance requirements.'}
+          </p>
         </div>
       </div>
 
       {/* Form */}
       <div className="space-y-6">
         {/* Section 1: Entity & Meeting Type */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Meeting Details</h2>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">Meeting Details</h2>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          </div><div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Entity <span className="text-red-500">*</span>
               </label>
               <select
                 value={form.entityId}
-                onChange={e => { set('entityId', e.target.value); set('invitedDirectors', []); }}
+                onChange={e => {
+                  set('entityId', e.target.value);
+                  set('chair', '');
+                  set('invitedDirectors', []);
+                }}
                 className={cn(
                   'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300',
                   errors.entityId ? 'border-red-300' : 'border-slate-200'
@@ -309,8 +326,8 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
         </div>
 
         {/* Section 2: Location */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Location</h2>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">Location</h2>
 
           <div className="flex gap-3">
             {(['virtual', 'physical', 'hybrid'] as const).map(lt => (
@@ -366,24 +383,33 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
         </div>
 
         {/* Section 3: Governance */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Governance</h2>
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
+          <h2 className="text-base font-semibold text-slate-900">Governance</h2>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Chair <span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
+              <select
                 value={form.chair}
                 onChange={e => set('chair', e.target.value)}
-                placeholder="e.g. John Doe"
                 className={cn(
                   'w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300',
                   errors.chair ? 'border-red-300' : 'border-slate-200'
                 )}
-              />
+                disabled={!form.entityId}
+              >
+                <option value="">
+                  {form.entityId ? 'Select Chair' : 'Select an entity first'}
+                </option>
+
+                {entityDirectors.map((director) => (
+                  <option key={director.id} value={director.name}>
+                    {director.name} • {director.role}
+                  </option>
+                ))}
+              </select>
               {errors.chair && <p className="text-xs text-red-500 mt-1">{errors.chair}</p>}
             </div>
             <div>
@@ -392,7 +418,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 type="text"
                 value={form.owner}
                 onChange={e => set('owner', e.target.value)}
-                placeholder="e.g. John Doe"
+                placeholder="Enter meeting owner (optional)"
                 className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"
               />
             </div>
@@ -428,9 +454,16 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
         </div>
 
         {/* Section 4: Invite Directors */}
-        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-4">
+        <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Invite Directors</h2>
+            <div>
+              <h2 className="text-base font-semibold text-slate-900">
+                Meeting Participants
+              </h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Select the participants who will attend this meeting.
+              </p>
+            </div>
             {form.entityId && entityDirectors.length > 0 && (
               <button
                 onClick={() => set('invitedDirectors',
@@ -445,19 +478,32 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
           </div>
 
           {!form.entityId ? (
-            <div className="flex items-center gap-2 text-sm text-slate-400 py-4">
-              <AlertCircle className="w-4 h-4" />
-              Select an entity to see available directors
+            <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50">
+              <Users className="w-8 h-8 text-slate-300 mb-3" />
+              <p className="text-sm font-medium text-slate-700">
+                No participants available
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Select an entity to load the directors for this meeting.
+              </p>
             </div>
           ) : entityDirectors.length === 0 ? (
-            <p className="text-sm text-slate-400 py-4">No active directors found for this entity.</p>
+            <div className="flex flex-col items-center justify-center py-8 text-center border border-dashed border-slate-200 rounded-lg bg-slate-50">
+              <Users className="w-8 h-8 text-slate-300 mb-3" />
+              <p className="text-sm font-medium text-slate-700">
+                No participants found
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                Add directors to this entity before scheduling a meeting.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {entityDirectors.map(dir => (
                 <label
                   key={dir.id}
                   className={cn(
-                    'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all',
+                    'flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all',
                     form.invitedDirectors.includes(dir.id)
                       ? 'border-indigo-300 bg-indigo-50'
                       : 'border-slate-200 hover:border-slate-300'
@@ -469,59 +515,85 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                     onChange={() => toggleDirector(dir.id)}
                     className="rounded text-indigo-600"
                   />
-                  <div className="flex-1">
+                  <div className="flex-1 min-h-[44px]">
                     <p className="text-sm font-medium text-slate-800">{dir.name}</p>
                     <p className="text-xs text-slate-500">{dir.role} · {dir.email}</p>
                   </div>
                   {form.invitedDirectors.includes(dir.id) && (
-                    <span className="text-xs text-indigo-600 font-medium">Invited</span>
+                    <span className="text-xs text-indigo-600 font-medium">
+                      Selected
+                    </span>
                   )}
                 </label>
               ))}
             </div>
           )}
 
-          {form.invitedDirectors.length > 0 && form.invitedDirectors.length < form.quorumRequired && (
-            <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              Only {form.invitedDirectors.length} director{form.invitedDirectors.length > 1 ? 's' : ''} invited — quorum requires {form.quorumRequired}
-            </div>
-          )}
+          {form.invitedDirectors.length > 0 &&
+            form.invitedDirectors.length < form.quorumRequired && (
+              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {form.invitedDirectors.length} participant
+                {form.invitedDirectors.length > 1 ? 's' : ''} selected — quorum
+                requires {form.quorumRequired}.
+              </div>
+            )}
 
-          {form.invitedDirectors.length >= form.quorumRequired && form.invitedDirectors.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <CheckCircle2 className="w-4 h-4 shrink-0" />
-              Quorum satisfied ({form.invitedDirectors.length}/{form.quorumRequired} directors invited)
-            </div>
-          )}
+          {form.invitedDirectors.length >= form.quorumRequired &&
+            form.invitedDirectors.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0" />
+                Quorum satisfied ({form.invitedDirectors.length} of {form.quorumRequired} participants selected)
+              </div>
+            )}
         </div>
 
         {/* Actions */}
-        <div className="flex items-center justify-between pt-2 pb-8">
-          <Link href="/board-meetings" className="text-sm text-slate-500 hover:text-slate-700">
-            Cancel
-          </Link>
-          <div className="flex items-center gap-3">
+        <div className="border-t border-slate-200 mt-6 pt-5 pb-6">
+          <div className="flex justify-end items-center gap-3">
             <button
-              onClick={() => { set('saveDraft', true); handleSubmit(true); }}
+              type="button"
+              onClick={() => router.push('/board-meetings')}
+              className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={() => {
+                set('saveDraft', true);
+                handleSubmit(true);
+              }}
               disabled={saving}
               className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               Save as Draft
             </button>
+
             <button
               onClick={() => handleSubmit(false)}
               disabled={saving}
               className="px-5 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
               {saving ? (
-                <span className="flex items-center gap-2">
+                <>
                   <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
                   </svg>
                   {isEdit ? 'Saving…' : 'Scheduling…'}
-                </span>
+                </>
               ) : (
                 <>
                   <Calendar className="w-4 h-4" />
