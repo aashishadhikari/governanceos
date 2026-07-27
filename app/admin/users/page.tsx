@@ -42,17 +42,21 @@ const DEPT_OPTIONS = [
 const BLANK_ADD_FORM = {
   name: '',
   email: '',
+  // Database Role (new RBAC model)
+  roleId: '',
+  // Legacy enum retained until permission-based authorization replaces role checks.
   role: 'viewer' as UserRole,
   department: '',
   title: '',
-
   isActive: true,
-
 };
 
 const BLANK_EDIT_FORM = {
   name: '',
   email: '',
+  // Database Role (new RBAC model)
+  roleId: '',
+  // Legacy enum retained until permission-based authorization replaces role checks.
   role: 'viewer' as UserRole,
   department: '',
   title: '',
@@ -94,7 +98,7 @@ export default function UserManagementPage() {
 
   // Selected role for permissions preview
   const [previewRole, setPreviewRole] = useState<UserRole>('viewer');
-
+  // Available roles loaded from the Role Management module instead of hardcoded enums.
   const [roles, setRoles] = useState<RoleOption[]>([]);
 
   const fetchUsers = async () => {
@@ -107,6 +111,7 @@ export default function UserManagementPage() {
 
   useEffect(() => { fetchUsers(); }, []);
   useEffect(() => {
+    // Load available roles from the database so new roles appear without UI changes.
     async function loadRoles() {
       try {
         const response = await fetch('/api/roles');
@@ -179,6 +184,9 @@ export default function UserManagementPage() {
       headers: {
         'Content-Type': 'application/json',
       },
+      // During the RBAC migration the payload includes both:
+      // - roleId (database role)
+      // - role (legacy enum for existing authorization)
       body: JSON.stringify(addForm),
     });
 
@@ -521,12 +529,18 @@ export default function UserManagementPage() {
                 <Input type="email" placeholder="jane.smith@emaildomain.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
               <FormField label="Role" required className="col-span-2">
-                <Select value={addForm.role} onChange={setAdd('role')} options={roles.map(role => ({
-                  value: role.name,
-                  label: role.description
-                    ? `${role.name} — ${role.description}`
-                    : role.name,
-                }))} />
+                <Select
+                  value={addForm.role}
+                  onChange={setAdd('role')}
+
+                  // Load available roles from the database instead of the legacy ROLE_OPTIONS constant.
+                  options={roles.map(role => ({
+                    value: role.name.toLowerCase().replace(/\s+/g, '_'),
+                    label: role.description
+                      ? `${role.name} — ${role.description}`
+                      : role.name,
+                  }))}
+                />
               </FormField>
               <FormField label="Department">
                 <Select value={addForm.department} onChange={setAdd('department')} options={DEPT_OPTIONS} placeholder="Select department" />
@@ -582,12 +596,18 @@ export default function UserManagementPage() {
                 )}
               </FormField>
               <FormField label="Role" required className="col-span-2">
-                <Select value={editForm.role} onChange={setEdit('role')} options={roles.map(role => ({
-                  value: role.name,
-                  label: role.description
-                    ? `${role.name} — ${role.description}`
-                    : role.name,
-                }))} />
+                <Select
+                  value={editForm.role}
+                  onChange={setEdit('role')}
+
+                  // Load available roles from the database instead of the legacy ROLE_OPTIONS constant.
+                  options={roles.map(role => ({
+                    value: role.name.toLowerCase().replace(/\s+/g, '_'),
+                    label: role.description
+                      ? `${role.name} — ${role.description}`
+                      : role.name,
+                  }))}
+                />
               </FormField>
               <FormField label="Department">
                 <Select value={editForm.department} onChange={setEdit('department')} options={DEPT_OPTIONS} placeholder="Select department" />

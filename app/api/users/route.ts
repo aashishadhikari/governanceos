@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
     const {
       name,
       email,
+      roleId,
       role,
       department,
       title,
@@ -70,13 +71,19 @@ export async function POST(req: NextRequest) {
     } = body as {
       name: string;
       email: string;
+
+      // New RBAC role identifier
+      roleId?: string;
+
+      // Legacy enum retained until permission-based authorization replaces role checks.
       role: UserRole;
+
       department: string;
       title: string;
       isActive: boolean;
     };
 
-    if (!name || !email || !role) {
+    if (!name || !email || (!role && !roleId)) {
       return NextResponse.json(
         { error: 'Name, Email, and Role are required' },
         { status: 400 }
@@ -98,6 +105,43 @@ export async function POST(req: NextRequest) {
         }
       );
     }
+
+    // Resolve the selected database role.
+    // During the RBAC migration we continue storing the legacy enum alongside roleId.
+    let resolvedRole = role;
+    let resolvedRoleId = roleId ?? null;
+
+    if (roleId) {
+      const dbRole = await prisma.role.findUnique({
+        where: { id: roleId },
+      });
+
+      if (!dbRole) {
+        return NextResponse.json(
+          { error: 'Invalid role selected.' },
+          { status: 400 }
+        );
+      }
+
+      resolvedRoleId = dbRole.id;
+
+      const roleMap: Record<string, UserRole> = {
+        'Super Admin': 'super_admin',
+        'Admin': 'admin',
+        'Legal': 'legal',
+        'Finance': 'finance',
+        'Viewer': 'viewer',
+      };
+
+      resolvedRole = roleMap[dbRole.name];
+
+      if (!resolvedRole) {
+        return NextResponse.json(
+          { error: 'Selected role is not mapped to a system role.' },
+          { status: 400 }
+        );
+      }
+    }
     const user = await prisma.user.create({
       data: {
         name,
@@ -106,7 +150,9 @@ export async function POST(req: NextRequest) {
         // No password yet - user will set it using the invitation link
         passwordHash: null,
 
-        role,
+        // Store both the database role and the legacy enum during the RBAC migration.
+        role: resolvedRole,
+        roleId: resolvedRoleId,
 
         department: department ?? '',
         title: title ?? '',
