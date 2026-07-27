@@ -9,15 +9,14 @@ import type { AppUser, UserRole } from '@/lib/db/users';
 import { ROLE_LABELS, ROLE_PERMISSIONS } from '@/lib/db/users';
 import { formatDate } from '@/lib/utils';
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+type RoleOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  isSystem: boolean;
+};
 
-const ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: 'super_admin', label: 'Super Admin — Full system access + user management' },
-  { value: 'admin', label: 'Admin — All modules, no user management' },
-  { value: 'legal', label: 'Legal — Entities, Directors, Compliance, Licenses' },
-  { value: 'finance', label: 'Finance — Entities, Compliance, Regulatory Capital' },
-  { value: 'viewer', label: 'Viewer — Read-only access' },
-];
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const ROLE_COLORS: Record<UserRole, string> = {
   super_admin: 'bg-purple-100 text-purple-700 border-purple-200',
@@ -96,6 +95,8 @@ export default function UserManagementPage() {
   // Selected role for permissions preview
   const [previewRole, setPreviewRole] = useState<UserRole>('viewer');
 
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+
   const fetchUsers = async () => {
     setLoading(true);
     const res = await fetch('/api/users');
@@ -105,6 +106,25 @@ export default function UserManagementPage() {
   };
 
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    async function loadRoles() {
+      try {
+        const response = await fetch('/api/roles');
+
+        if (!response.ok) {
+          throw new Error('Failed to load roles');
+        }
+
+        const data = await response.json();
+
+        setRoles(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    loadRoles();
+  }, []);
 
   const setAdd = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setAddForm(prev => ({ ...prev, [field]: e.target.value }));
@@ -501,7 +521,12 @@ export default function UserManagementPage() {
                 <Input type="email" placeholder="jane.smith@emaildomain.com" value={addForm.email} onChange={setAdd('email')} required />
               </FormField>
               <FormField label="Role" required className="col-span-2">
-                <Select value={addForm.role} onChange={setAdd('role')} options={ROLE_OPTIONS} />
+                <Select value={addForm.role} onChange={setAdd('role')} options={roles.map(role => ({
+                  value: role.name,
+                  label: role.description
+                    ? `${role.name} — ${role.description}`
+                    : role.name,
+                }))} />
               </FormField>
               <FormField label="Department">
                 <Select value={addForm.department} onChange={setAdd('department')} options={DEPT_OPTIONS} placeholder="Select department" />
@@ -557,7 +582,12 @@ export default function UserManagementPage() {
                 )}
               </FormField>
               <FormField label="Role" required className="col-span-2">
-                <Select value={editForm.role} onChange={setEdit('role')} options={ROLE_OPTIONS} />
+                <Select value={editForm.role} onChange={setEdit('role')} options={roles.map(role => ({
+                  value: role.name,
+                  label: role.description
+                    ? `${role.name} — ${role.description}`
+                    : role.name,
+                }))} />
               </FormField>
               <FormField label="Department">
                 <Select value={editForm.department} onChange={setEdit('department')} options={DEPT_OPTIONS} placeholder="Select department" />

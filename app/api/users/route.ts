@@ -16,14 +16,28 @@ import { Prisma } from '@prisma/client';
 export async function GET() {
   try {
     const users = await prisma.user.findMany({
-       orderBy: {
+      orderBy: {
         name: 'asc',
       },
       select: {
         id: true,
         name: true,
         email: true,
+
+        // Legacy enum (temporary)
         role: true,
+
+        // New database role
+        roleId: true,
+        roleRef: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            isSystem: true,
+          },
+        },
+
         department: true,
         title: true,
         isActive: true,
