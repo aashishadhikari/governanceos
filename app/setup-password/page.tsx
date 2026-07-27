@@ -13,13 +13,14 @@ export default function SetupPasswordPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
 
   const handleSubmit = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
-
+    setError('');
     setSaving(true);
 
     try {
@@ -38,7 +39,7 @@ export default function SetupPasswordPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        alert(result.error);
+        setError(result.error ?? 'Failed to set password.');
         return;
       }
 
@@ -57,14 +58,18 @@ export default function SetupPasswordPage() {
         </h1>
 
         <p className="text-sm text-gray-600 mb-6">
-          Create your password to activate your GovernanceOS account.
+          Create your password to activate your iSend Corporate Entity Governance Platform account.
         </p>
 
         <form
           onSubmit={handleSubmit}
           className="space-y-4"
         >
-
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium mb-1">
               Password

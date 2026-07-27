@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Modal from '@/components/ui/Modal';
 import { FormField, Input, Select, Button } from '@/components/ui/FormField';
-import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw } from 'lucide-react';
+import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw, Check } from 'lucide-react';
 import type { AppUser, UserRole } from '@/lib/db/users';
 import { ROLE_LABELS, ROLE_PERMISSIONS } from '@/lib/db/users';
 import { formatDate } from '@/lib/utils';
@@ -86,6 +86,12 @@ export default function UserManagementPage() {
   // Deactivate confirmation
   const [confirmUser, setConfirmUser] = useState<AppUser | null>(null);
   const [confirmSaving, setConfirmSaving] = useState(false);
+
+  // Reset password confirmation
+  const [resetUser, setResetUser] = useState<AppUser | null>(null);
+  const [resetSaving, setResetSaving] = useState(false);
+  const [resetSaved, setResetSaved] = useState(false);
+  const [resetError, setResetError] = useState('');
 
   // Selected role for permissions preview
   const [previewRole, setPreviewRole] = useState<UserRole>('viewer');
@@ -196,20 +202,15 @@ export default function UserManagementPage() {
 
   // Sends a new password setup email to the selected user.
   // Any previous setup links are automatically invalidated by the API.
-  const handleResetPassword = async (user: AppUser) => {
-    const confirmed = window.confirm(
-      `Reset the password for "${user.name}"?\n\n` +
-      `A new password setup email will be sent.\n` +
-      `Any previous setup links will no longer work.`
-    );
+  const handleResetPassword = async () => {
+    if (!resetUser) return;
 
-    if (!confirmed) {
-      return;
-    }
+    setResetSaving(true);
+    setResetError('');
 
     try {
       const res = await fetch(
-        `/api/users/${user.id}/resend-invitation`,
+        `/api/users/${resetUser.id}/resend-invitation`,
         {
           method: 'POST',
         }
@@ -218,14 +219,25 @@ export default function UserManagementPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error ?? 'Failed to send password setup email.');
+        setResetError(
+          data.error ?? 'Failed to send password setup email.'
+        );
+        setResetSaving(false);
         return;
       }
 
-      alert('Password setup email sent successfully.');
+      setResetSaving(false);
+      setResetSaved(true);
+
+      setTimeout(() => {
+        setResetSaved(false);
+        setResetUser(null);
+      }, 3000);
+
     } catch (err) {
       console.error(err);
-      alert('Failed to send password setup email.');
+      setResetSaving(false);
+      setResetError('Failed to send password setup email.');
     }
   };
 
@@ -399,9 +411,13 @@ export default function UserManagementPage() {
                             <Pencil className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => handleResetPassword(user)}
+                            onClick={() => {
+                              setResetError('');
+                              setResetSaved(false);
+                              setResetUser(user);
+                            }}
                             className="p-1.5 rounded-lg text-amber-600 hover:bg-gray-200 hover:text-amber-700 transition-colors" title="Reset Password">
-                          <KeyRound className="w-4 h-4" />
+                            <KeyRound className="w-4 h-4" />
                           </button>
                           {user.isActive ? (
                             <button onClick={() => setConfirmUser(user)}
@@ -586,6 +602,83 @@ export default function UserManagementPage() {
               <Button type="submit" loading={editSaving}>Save Changes</Button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      {/* Reset Password */}
+      <Modal
+        isOpen={!!resetUser}
+        onClose={() => setResetUser(null)}
+        title="Reset Password"
+        subtitle="Generate a new password setup link."
+        size="sm"
+      >
+        {resetSaved ? (
+          <div className="flex flex-col items-center py-6 gap-3">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+              <Check className="w-7 h-7 text-green-700" strokeWidth={2.5} />
+            </div>
+            <p className="font-semibold text-green-800">
+              Password reset email sent successfully
+            </p>
+            <p className="text-sm text-gray-500 text-center">
+              A new password setup email has been sent to
+              <br />
+              <span className="font-medium">{resetUser?.email}</span>
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {resetError && (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {resetError}
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600">
+              Send a password reset email to {" "}
+              <span className="font-semibold text-gray-900">
+                {resetUser?.name}
+              </span>
+              ?
+            </p>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Password Reset Email
+              </p>
+
+              <p className="mt-2 font-medium text-gray-900">
+                {resetUser?.email}
+              </p>
+
+              <p className="mt-4 text-sm text-gray-600">
+                A new password setup link will be generated.
+              </p>
+
+              <p className="mt-1 text-xs text-gray-500">
+                Any previously issued password setup links will be invalidated automatically.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setResetUser(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                loading={resetSaving}
+                onClick={handleResetPassword}
+              >
+                Send Password Reset Email
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
 

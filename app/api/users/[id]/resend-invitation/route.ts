@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { createInvitation } from '@/lib/auth/user-token';
-import { sendInvitationEmail } from '@/lib/email';
 import { writeRequestAuditLog } from '@/lib/audit';
+import { sendPasswordResetEmail } from '@/lib/email';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -55,7 +55,7 @@ export async function POST(
       `http://localhost:3000/setup-password?token=${invitation.token}`;
 
     // Send the email.
-    await sendInvitationEmail(
+    await sendPasswordResetEmail(
       user.name,
       user.email,
       invitationUrl,
