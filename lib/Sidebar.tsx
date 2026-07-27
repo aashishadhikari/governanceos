@@ -27,7 +27,11 @@ const navItems: NavItem[] = [
   },
 
   { href: '/entities', label: 'Entities', icon: Building2 },
-  { href: '/directors', label: 'Directors', icon: Users },
+  {
+  label: 'Governance Team',
+  href: '/directors',
+  icon: Users,
+},
 
   {
     href: '/compliance',

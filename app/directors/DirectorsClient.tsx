@@ -139,9 +139,9 @@ const ROLE_CATEGORY = (role: string) => {
 };
 
 const CATEGORY_CONFIG = {
-  executive: { label: 'Executive Directors', color: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500', icon: Briefcase },
-  'non-executive': { label: 'Non-Executive Directors (NED)', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400', icon: Users },
-  independent: { label: 'Independent Directors', color: 'bg-green-100 text-green-700', dot: 'bg-green-500', icon: ShieldCheck },
+  executive: { label: 'Executive Members', color: 'bg-indigo-100 text-indigo-700', dot: 'bg-indigo-500', icon: Briefcase },
+  'non-executive': { label: 'Non-Executive Members', color: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400', icon: Users },
+  independent: { label: 'Independent Members', color: 'bg-green-100 text-green-700', dot: 'bg-green-500', icon: ShieldCheck },
   secretary: { label: 'Company Secretaries', color: 'bg-purple-100 text-purple-700', dot: 'bg-purple-400', icon: UserCheck },
   officer: { label: 'Officers & Other Roles', color: 'bg-gray-100 text-gray-700', dot: 'bg-gray-400', icon: UserCheck },
 };
@@ -159,7 +159,7 @@ const NATIONALITY_OPTIONS: { value: string; label: string }[] = [
   'Polish', 'Portuguese', 'Qatari', 'Romanian', 'Russian', 'Saudi', 'Singaporean',
   'Slovak', 'Slovenian', 'South African', 'South Korean', 'Spanish', 'Sri Lankan',
   'Swedish', 'Swiss', 'Taiwanese', 'Thai', 'Turkish', 'Ukrainian', 'Uruguayan',
-  'Venezuelan', 'Vietnamese','Nepalese',
+  'Venezuelan', 'Vietnamese', 'Nepalese',
 ].map(n => ({ value: n, label: n }));
 
 const KNOWN_ROLES = new Set(ROLE_OPTIONS.map(o => o.value).filter(v => v !== '__other__'));
@@ -323,9 +323,9 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
         {/* Stats */}
         <div className="grid grid-cols-5 gap-4">
           {[
-            { label: 'Executive Directors', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'executive').length, color: 'bg-indigo-500' },
-            { label: 'Non-Executive (NED)', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'non-executive').length, color: 'bg-blue-500' },
-            { label: 'Independent Directors', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'independent').length, color: 'bg-green-500' },
+            { label: 'Executive Members', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'executive').length, color: 'bg-indigo-500' },
+            { label: 'Non-Executive Members', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'non-executive').length, color: 'bg-blue-500' },
+            { label: 'Independent Members', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'independent').length, color: 'bg-green-500' },
             { label: 'Company Secretaries', value: activeDirectors.filter(d => ROLE_CATEGORY(d.role) === 'secretary').length, color: 'bg-purple-500' },
             {
               label: 'Terms Expiring <1yr', value: directorList.filter(d => {
@@ -345,7 +345,9 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
         </div>
 
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Directors & Officers by Entity</h2>
+          <h2 className="font-semibold text-gray-900">
+            Governance Team by Entity
+          </h2>
           <button onClick={() => { setAddSaved(false); setAddOpen(true); }} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
             <Plus className="w-4 h-4" /> Add Director
           </button>
@@ -400,8 +402,8 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                               return (
                                 <div key={dir.id} className="flex items-center gap-3 py-1 group">
                                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${cat === 'independent' ? 'bg-green-100 text-green-700' :
-                                      cat === 'executive' ? 'bg-indigo-100 text-indigo-700' :
-                                        'bg-gray-100 text-gray-600'
+                                    cat === 'executive' ? 'bg-indigo-100 text-indigo-700' :
+                                      'bg-gray-100 text-gray-600'
                                     }`}>
                                     {dir.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                   </div>
@@ -509,11 +511,11 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
       </div>
 
       {/* ── Add Director Modal ── */}
-      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Director / Officer" subtitle="Register a new director or senior officer">
+      <Modal isOpen={addOpen} onClose={() => setAddOpen(false)} title="Add Governance Team Member" subtitle="Register a governance team member">
         {addSaved ? (
           <div className="flex flex-col items-center py-10 gap-3">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">✓</div>
-            <p className="font-semibold text-green-800">Director added successfully</p>
+            <p className="font-semibold text-green-800">Governance team member added successfully</p>
           </div>
         ) : (
           <form onSubmit={handleAdd} className="space-y-4">
@@ -553,18 +555,18 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
             </div>
             <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
               <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={addSaving}>Add Director</Button>
+              <Button type="submit" loading={addSaving}>Add Team Member</Button>
             </div>
           </form>
         )}
       </Modal>
 
-      {/* ── Edit Director Modal ── */}
-      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Director" subtitle={editDir?.name}>
+      {/* ── Edit Governance Team Member Modal ── */}
+      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit Governance Team Member" subtitle={editDir?.name}>
         {editSaved ? (
           <div className="flex flex-col items-center py-10 gap-3">
             <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center text-2xl">✓</div>
-            <p className="font-semibold text-green-800">Director updated successfully</p>
+            <p className="font-semibold text-green-800">Governance team member updated successfully</p>
           </div>
         ) : (
           <form onSubmit={handleEdit} className="space-y-4">
@@ -604,7 +606,7 @@ export default function DirectorsClient({ initialDirectors, entities, boardMeeti
                   options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Resigned / Inactive' }]}
                 />
               </FormField>
-              <FormField label="Director Guide URL" hint="Link to onboarding guide or D&O materials" className="col-span-2">
+              <FormField label="Governance Guide URL" hint="Link to onboarding guide or governance reference materials" className="col-span-2">
                 <Input
                   type="url"
                   placeholder="https://drive.google.com/..."

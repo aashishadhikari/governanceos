@@ -215,7 +215,7 @@ export default async function EntityDetailPage({ params }: Props) {
               </div>
               <Link href="/directors" className="text-xs text-indigo-600 hover:underline">View all →</Link>
             </div>
-            {/* Executive Directors */}
+            {/* Executive Directors - changed to Executive Members in the UI*/}
             {entityDirectors.filter(d => !d.role.toLowerCase().includes('independent')).length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Executive / Non-Executive</p>

@@ -19,7 +19,7 @@ const ALL_NAV = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'entities' },
   { href: '/entities', label: 'Entities', icon: Building2, module: 'entities' },
   { href: '/org-chart', label: 'Org Chart', icon: GitBranch, module: 'entities' },
-  { href: '/directors', label: 'Directors', icon: Users, module: 'directors' },
+  { href: '/directors', label: 'Governance Team', icon: Users, module: 'directors' },
   { href: '/board-meetings', label: 'Board Meetings', icon: ClipboardList, module: 'meetings' },
 
   { href: '/calendar', label: 'Key Dates', icon: Calendar, module: 'calendar' },
