@@ -38,6 +38,30 @@ export async function PATCH(req: NextRequest, { params }: Props) {
   try {
     const { id } = await params;
     const body = await req.json();
+    // Resolve the selected database role into the legacy enum
+    if (body.roleId) {
+      const role = await prisma.role.findUnique({
+        where: { id: body.roleId },
+      });
+
+      if (!role) {
+        return NextResponse.json(
+          { error: "Invalid role selected" },
+          { status: 400 }
+        );
+      }
+
+      body.role =
+        role.name === "Super Admin"
+          ? "super_admin"
+          : role.name === "Admin"
+            ? "admin"
+            : role.name === "Finance"
+              ? "finance"
+              : role.name === "Legal"
+                ? "legal"
+                : "viewer";
+    }
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {

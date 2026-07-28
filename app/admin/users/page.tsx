@@ -144,7 +144,13 @@ export default function UserManagementPage() {
 
       name: user.name,
       email: user.email,
+
+      // New RBAC role
+      roleId: user.roleId ?? "",
+
+      // Legacy role
       role: user.role,
+
       department: user.department,
       title: user.title,
     });
@@ -178,6 +184,10 @@ export default function UserManagementPage() {
 
     setAddError('');
     setAddSaving(true);
+    if (!addForm.roleId) {
+      // Show your existing toast/error message.
+      return;
+    }
 
     const res = await fetch('/api/users', {
       method: 'POST',
@@ -201,6 +211,7 @@ export default function UserManagementPage() {
       setTimeout(() => {
         setAddSaved(false);
         setAddOpen(false);
+        // Reset the form, including both the legacy role enum and the new roleId
         setAddForm(BLANK_ADD_FORM);
       }, 1500);
 
@@ -530,12 +541,27 @@ export default function UserManagementPage() {
               </FormField>
               <FormField label="Role" required className="col-span-2">
                 <Select
-                  value={addForm.role}
-                  onChange={setAdd('role')}
+                  value={addForm.roleId}
+                  placeholder="Select a role"
+                  onChange={(e) => {
+                    const selectedRole = roles.find(r => r.id === e.target.value);
 
-                  // Load available roles from the database instead of the legacy ROLE_OPTIONS constant.
+                    setAddForm(prev => ({
+                      ...prev,
+
+                      // Store the selected database Role ID.
+                      roleId: e.target.value,
+
+                      // Keep the legacy enum in sync until permission-based authorization is implemented.
+                      role: selectedRole
+                        ? selectedRole.name.toLowerCase().replace(/\s+/g, '_') as UserRole
+                        : prev.role,
+                    }));
+                  }}
+
+                  // Load available roles from the Role Management module.
                   options={roles.map(role => ({
-                    value: role.name.toLowerCase().replace(/\s+/g, '_'),
+                    value: role.id,
                     label: role.description
                       ? `${role.name} — ${role.description}`
                       : role.name,
@@ -597,12 +623,27 @@ export default function UserManagementPage() {
               </FormField>
               <FormField label="Role" required className="col-span-2">
                 <Select
-                  value={editForm.role}
-                  onChange={setEdit('role')}
+                  value={editForm.roleId}
+                  placeholder="Select a role"
+                  onChange={(e) => {
+                    const selectedRole = roles.find(
+                      (r) => r.id === e.target.value
+                    );
 
-                  // Load available roles from the database instead of the legacy ROLE_OPTIONS constant.
-                  options={roles.map(role => ({
-                    value: role.name.toLowerCase().replace(/\s+/g, '_'),
+                    setEditForm((prev) => ({
+                      ...prev,
+
+                      // Database role
+                      roleId: e.target.value,
+
+                      // Legacy enum
+                      role: selectedRole
+                        ? selectedRole.name.toLowerCase().replace(/\s+/g, "_") as UserRole
+                        : prev.role,
+                    }));
+                  }}
+                  options={roles.map((role) => ({
+                    value: role.id,
                     label: role.description
                       ? `${role.name} — ${role.description}`
                       : role.name,
