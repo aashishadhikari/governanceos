@@ -5,7 +5,9 @@ import Header from '@/components/layout/Header';
 import RoleModal from '@/components/roles/RoleModal';
 import DeleteRoleDialog from '@/components/roles/DeleteRoleDialog';
 import RolePermissionViewer from '@/components/roles/RolePermissionViewer';
-import { Plus, Search, RefreshCw, Pencil, Trash2, Eye, ShieldCheck, Lock, UserCog, UserCheck } from 'lucide-react';
+import CloneRoleDialog, { type ClonedRole } from '@/components/roles/CloneRoleDialog';
+import { useToast } from '@/components/ui/ToastProvider';
+import { Plus, Search, RefreshCw, Pencil, Trash2, Eye, Copy, ShieldCheck, Lock, UserCog, UserCheck } from 'lucide-react';
 
 type RoleOption = {
   id: string;
@@ -26,6 +28,8 @@ type PermissionSummary = {
 type RoleRow = RoleOption & { userCount: number; permissions: PermissionSummary[] };
 
 export default function RoleManagementPage() {
+  const toast = useToast();
+
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,6 +43,9 @@ export default function RoleManagementPage() {
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewingRole, setViewingRole] = useState<RoleRow | null>(null);
+
+  const [cloneOpen, setCloneOpen] = useState(false);
+  const [cloningRole, setCloningRole] = useState<RoleRow | null>(null);
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -87,6 +94,21 @@ export default function RoleManagementPage() {
   const openView = (role: RoleRow) => {
     setViewingRole(role);
     setViewerOpen(true);
+  };
+
+  const openClone = (role: RoleRow) => {
+    setCloningRole(role);
+    setCloneOpen(true);
+  };
+
+  // On success: refresh the table, immediately open the Permission Editor
+  // for the newly-cloned role (using the API's own response, not a re-fetch,
+  // so there's no race with the list refresh), then toast.
+  const handleCloned = (newRole: ClonedRole) => {
+    fetchRoles();
+    setViewingRole(newRole);
+    setViewerOpen(true);
+    toast.success('Role cloned successfully.');
   };
 
   const filtered = roles.filter(role =>
@@ -232,6 +254,13 @@ export default function RoleManagementPage() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
+                        <button
+                          onClick={() => openClone(role)}
+                          className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                          title="Clone Role"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -270,6 +299,13 @@ export default function RoleManagementPage() {
         onClose={() => setViewerOpen(false)}
         onSaved={fetchRoles}
         role={viewingRole}
+      />
+
+      <CloneRoleDialog
+        isOpen={cloneOpen}
+        onClose={() => setCloneOpen(false)}
+        onCloned={handleCloned}
+        sourceRole={cloningRole}
       />
     </div>
   );

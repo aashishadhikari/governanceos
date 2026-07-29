@@ -16,6 +16,9 @@ declare module 'next-auth' {
   interface User {
     id: string;
     role: UserRole;
+    // Database RBAC role (Role.id). Null for users not yet assigned a
+    // database role — treated as "no permissions" by lib/auth/permissions.ts.
+    roleId: string | null;
     department: string | null;
     title: string | null;
   }
@@ -24,6 +27,7 @@ declare module 'next-auth' {
     user: {
       id: string;
       role: UserRole;
+      roleId: string | null;
       department: string;
       title: string;
     } & DefaultSession['user'];
@@ -34,6 +38,7 @@ declare module 'next-auth/jwt' {
   interface JWT {
     userId?: string;
     role?: UserRole;
+    roleId?: string | null;
     department?: string;
     title?: string;
   }
@@ -131,6 +136,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           role: user.role,
+          roleId: user.roleId,
           department: user.department,
           title: user.title,
         };
@@ -192,6 +198,7 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.userId = user.id;
         token.role = user.role;
+        token.roleId = user.roleId;
         token.department = user.department ?? '';
         token.title = user.title ?? '';
       }
@@ -203,6 +210,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.userId ?? '';
         session.user.role = (token.role as UserRole) ?? 'viewer';
+        session.user.roleId = token.roleId ?? null;
         session.user.department = token.department ?? '';
         session.user.title = token.title ?? '';
       }
