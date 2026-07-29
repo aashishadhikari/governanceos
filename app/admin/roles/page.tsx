@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import RoleModal from '@/components/roles/RoleModal';
 import DeleteRoleDialog from '@/components/roles/DeleteRoleDialog';
-import { Plus, Search, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, RefreshCw, Pencil, Trash2, ShieldCheck, Lock, UserCog, UserCheck } from 'lucide-react';
 
 type RoleOption = {
   id: string;
@@ -77,13 +77,41 @@ export default function RoleManagementPage() {
     !search || role.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  // ─── Summary stats ──────────────────────────────────────────────────────────
+
+  const systemCount = roles.filter(role => role.isSystem).length;
+  const customCount = roles.length - systemCount;
+  const assignedCount = roles.filter(role => role.userCount > 0).length;
+
+  const STATS = [
+    { key: 'total', label: 'Total Roles', icon: ShieldCheck, value: roles.length, color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    { key: 'system', label: 'System Roles', icon: Lock, value: systemCount, color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    { key: 'custom', label: 'Custom Roles', icon: UserCog, value: customCount, color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    { key: 'assigned', label: 'Roles In Use', icon: UserCheck, value: assignedCount, color: 'bg-green-100 text-green-700 border-green-200' },
+  ];
+
   return (
     <div>
       <Header
         title="Role Management"
-        subtitle={`${roles.length} role${roles.length === 1 ? '' : 's'} configured`}
+        subtitle={`${roles.length} role${roles.length === 1 ? '' : 's'} configured · ${assignedCount} assigned to users`}
       />
       <div className="px-8 py-6 space-y-6">
+
+        {/* Role stats */}
+        <div className="grid grid-cols-4 gap-3">
+          {STATS.map(({ key, label, icon: Icon, value, color }) => (
+            <div key={key} className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Icon className="w-4 h-4 text-gray-400" />
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${color}`}>
+                  {label}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-gray-900">{value}</p>
+            </div>
+          ))}
+        </div>
 
         {/* Controls */}
         <div className="flex items-center gap-3">
@@ -131,10 +159,10 @@ export default function RoleManagementPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-xs text-gray-400 uppercase tracking-wide bg-gray-50 border-b border-gray-100">
-                  <th className="text-left px-6 py-3 font-medium">Role Name</th>
+                  <th className="text-left px-6 py-3 font-medium">Role</th>
                   <th className="text-left px-6 py-3 font-medium">Description</th>
-                  <th className="text-left px-6 py-3 font-medium">System</th>
-                  <th className="text-left px-6 py-3 font-medium">Users</th>
+                  <th className="text-left px-6 py-3 font-medium">Type</th>
+                  <th className="text-left px-6 py-3 font-medium">Assigned Users</th>
                   <th className="text-left px-6 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
@@ -142,13 +170,22 @@ export default function RoleManagementPage() {
                 {filtered.map(role => (
                   <tr key={role.id} className="hover:bg-gray-50 transition-colors group">
                     <td className="px-6 py-4">
-                      <p className="font-medium text-gray-900">{role.name}</p>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${role.isSystem ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                          <ShieldCheck className="w-4 h-4" />
+                        </div>
+                        <p className="font-medium text-gray-900">{role.name}</p>
+                      </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {role.description || '-'}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-700">
-                      {role.isSystem ? 'Yes' : 'No'}
+                    <td className="px-6 py-4">
+                      {role.isSystem ? (
+                        <span className="text-xs font-medium text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full">System</span>
+                      ) : (
+                        <span className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full">Custom</span>
+                      )}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-700">
                       {role.userCount}

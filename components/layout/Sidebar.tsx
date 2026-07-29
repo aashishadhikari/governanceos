@@ -9,7 +9,7 @@ import {
   Building2, LayoutDashboard, Calendar, FileText,
   Users, TrendingUp, Bell, ChevronRight, Shield,
   Globe, LogOut, UserCog, ChevronDown, ClipboardList,
-  GitBranch, MessageSquarePlus,
+  GitBranch, MessageSquarePlus, ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { UserRole } from '@/lib/db/users';
@@ -34,6 +34,7 @@ const ALL_NAV = [
 
 const ADMIN_NAV = [
   { href: '/admin/users', label: 'User Management', icon: UserCog, module: 'admin' },
+  { href: '/admin/roles', label: 'Roles', icon: ShieldCheck, module: 'admin' },
   { href: '/admin/submissions', label: 'Submissions', icon: MessageSquarePlus, module: 'admin' },
 ];
 
@@ -87,7 +88,7 @@ export default function Sidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto sidebar-nav-scroll">
         {visibleNav.map(({ href, label, icon: Icon, badge, exact }) => {
           const isActive = exact
             ? pathname === href
