@@ -208,15 +208,14 @@ export default function RoleManagementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {role.isSystem ? (
-                          <button
-                            onClick={() => openView(role)}
-                            className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-gray-700 transition-colors"
-                            title="View Permissions"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </button>
-                        ) : (
+                        <button
+                          onClick={() => openView(role)}
+                          className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                          title={role.isSystem ? 'View Permissions' : 'Edit Permissions'}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        {!role.isSystem && (
                           <button
                             onClick={() => openEdit(role)}
                             className="p-1.5 rounded-lg text-blue-600 hover:bg-gray-200 hover:text-blue-700 transition-colors"
@@ -269,6 +268,7 @@ export default function RoleManagementPage() {
       <RolePermissionViewer
         isOpen={viewerOpen}
         onClose={() => setViewerOpen(false)}
+        onSaved={fetchRoles}
         role={viewingRole}
       />
     </div>
