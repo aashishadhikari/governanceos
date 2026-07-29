@@ -58,6 +58,25 @@ Unless the user explicitly asks for them, never introduce:
 - Privacy Management
 - ESG Management
  
+ ## This project is an MVP.
+Rules:
+- One feature at a time.
+- Never refactor unrelated code.
+- Modify the minimum number of files.
+- Reuse existing components.
+- Follow existing code style.
+- Follow existing API route patterns.
+- Reuse existing modal/dialog components.
+- Reuse audit logging.
+- Reuse Prisma query style.
+- Do not invent new architecture.
+- Explain changes before editing.
+- Never touch unrelated modules.
+
+Before implementing:
+1. Inspect similar implementation.
+2. Reuse patterns.
+3. Keep changes incremental.
 
 # IMPORTANT NOTE
 Stay out of scope unless the user explicitly requests them by name.
