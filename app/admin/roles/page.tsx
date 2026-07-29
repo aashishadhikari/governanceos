@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
 import RoleModal from '@/components/roles/RoleModal';
 import DeleteRoleDialog from '@/components/roles/DeleteRoleDialog';
-import { Plus, Search, RefreshCw, Pencil, Trash2, ShieldCheck, Lock, UserCog, UserCheck } from 'lucide-react';
+import RolePermissionViewer from '@/components/roles/RolePermissionViewer';
+import { Plus, Search, RefreshCw, Pencil, Trash2, Eye, ShieldCheck, Lock, UserCog, UserCheck } from 'lucide-react';
 
 type RoleOption = {
   id: string;
@@ -13,9 +14,16 @@ type RoleOption = {
   isSystem: boolean;
 };
 
-// GET /api/roles now returns userCount directly (Prisma _count.users),
-// computed atomically with the role list itself.
-type RoleRow = RoleOption & { userCount: number };
+type PermissionSummary = {
+  code: string;
+  name: string;
+  description: string | null;
+  module: string;
+};
+
+// GET /api/roles now returns userCount (Prisma _count.users) and the role's
+// assigned permissions, both computed atomically with the role list itself.
+type RoleRow = RoleOption & { userCount: number; permissions: PermissionSummary[] };
 
 export default function RoleManagementPage() {
   const [roles, setRoles] = useState<RoleRow[]>([]);
@@ -28,6 +36,9 @@ export default function RoleManagementPage() {
 
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletingRole, setDeletingRole] = useState<RoleRow | null>(null);
+
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewingRole, setViewingRole] = useState<RoleRow | null>(null);
 
   const fetchRoles = async () => {
     setLoading(true);
@@ -71,6 +82,11 @@ export default function RoleManagementPage() {
     if (role.isSystem) return;
     setDeletingRole(role);
     setDeleteOpen(true);
+  };
+
+  const openView = (role: RoleRow) => {
+    setViewingRole(role);
+    setViewerOpen(true);
   };
 
   const filtered = roles.filter(role =>
@@ -192,13 +208,23 @@ export default function RoleManagementPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openEdit(role)}
-                          className="p-1.5 rounded-lg text-blue-600 hover:bg-gray-200 hover:text-blue-700 transition-colors"
-                          title="Edit Role"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        {role.isSystem ? (
+                          <button
+                            onClick={() => openView(role)}
+                            className="p-1.5 rounded-lg text-gray-600 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                            title="View Permissions"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => openEdit(role)}
+                            className="p-1.5 rounded-lg text-blue-600 hover:bg-gray-200 hover:text-blue-700 transition-colors"
+                            title="Edit Role"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                         <button
                           onClick={() => openDelete(role)}
                           disabled={role.isSystem}
@@ -238,6 +264,12 @@ export default function RoleManagementPage() {
         role={deletingRole}
         onClose={() => setDeleteOpen(false)}
         onDeleted={fetchRoles}
+      />
+
+      <RolePermissionViewer
+        isOpen={viewerOpen}
+        onClose={() => setViewerOpen(false)}
+        role={viewingRole}
       />
     </div>
   );

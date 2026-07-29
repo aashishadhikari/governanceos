@@ -23,12 +23,25 @@ export async function GET() {
         _count: {
           select: { users: true },
         },
+        permissions: {
+          select: {
+            permission: {
+              select: {
+                code: true,
+                name: true,
+                description: true,
+                module: true,
+              },
+            },
+          },
+        },
       },
     });
 
-    const data = roles.map(({ _count, ...role }) => ({
+    const data = roles.map(({ _count, permissions, ...role }) => ({
       ...role,
       userCount: _count.users,
+      permissions: permissions.map((rp) => rp.permission),
     }));
 
     return NextResponse.json(data);
