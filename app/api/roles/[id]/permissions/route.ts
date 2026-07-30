@@ -8,11 +8,16 @@ import prisma from '@/lib/prisma';
 // - client IP address
 // - browser User-Agent
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 interface Props { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, { params }: Props) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ROLE_EDIT);
+    if (denied) return denied;
+
     const { id } = await params;
     const body = await req.json();
 

@@ -10,6 +10,8 @@ import prisma from '@/lib/prisma';
 // - client IP address
 // - browser User-Agent
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -36,6 +38,9 @@ export async function GET(_req: NextRequest, { params }: Props) {
 
 export async function PATCH(req: NextRequest, { params }: Props) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_EDIT);
+    if (denied) return denied;
+
     const { id } = await params;
     const body = await req.json();
     // Resolve the selected database role into the legacy enum
@@ -99,6 +104,9 @@ export async function PATCH(req: NextRequest, { params }: Props) {
 // The authenticated user (actor) is captured automatically.
 export async function DELETE(req: NextRequest, { params }: Props) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_DEACTIVATE);
+    if (denied) return denied;
+
     const { id } = await params;
 
     const user = await prisma.user.findUnique({ where: { id } });

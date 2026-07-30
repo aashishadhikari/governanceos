@@ -7,9 +7,14 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function GET() {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ROLE_VIEW);
+    if (denied) return denied;
+
     const roles = await prisma.role.findMany({
       orderBy: [
         { isSystem: 'desc' },
@@ -56,6 +61,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ROLE_CREATE);
+    if (denied) return denied;
+
     const body = await req.json();
     const { name, description, isSystem } = body as {
       name: string;

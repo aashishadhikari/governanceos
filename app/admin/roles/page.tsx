@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Header from '@/components/layout/Header';
+import AccessDenied from '@/components/ui/AccessDenied';
 import RoleModal from '@/components/roles/RoleModal';
 import DeleteRoleDialog from '@/components/roles/DeleteRoleDialog';
 import RolePermissionViewer from '@/components/roles/RolePermissionViewer';
@@ -33,6 +34,7 @@ export default function RoleManagementPage() {
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [forbidden, setForbidden] = useState(false);
   const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -50,9 +52,17 @@ export default function RoleManagementPage() {
   const fetchRoles = async () => {
     setLoading(true);
     setError('');
+    setForbidden(false);
 
     try {
       const res = await fetch('/api/roles');
+
+      if (res.status === 403) {
+        setForbidden(true);
+        setRoles([]);
+        return;
+      }
+
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error ?? 'Failed to load roles.');
@@ -127,6 +137,12 @@ export default function RoleManagementPage() {
     { key: 'custom', label: 'Custom Roles', icon: UserCog, value: customCount, color: 'bg-blue-100 text-blue-700 border-blue-200' },
     { key: 'assigned', label: 'Roles In Use', icon: UserCheck, value: assignedCount, color: 'bg-green-100 text-green-700 border-green-200' },
   ];
+
+  if (forbidden) {
+    return (
+      <AccessDenied message="You don't have permission to access Role Management." />
+    );
+  }
 
   return (
     <div>

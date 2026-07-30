@@ -3,6 +3,8 @@ import prisma from '@/lib/prisma';
 import { createInvitation } from '@/lib/auth/user-token';
 import { writeRequestAuditLog } from '@/lib/audit';
 import { sendPasswordResetEmail } from '@/lib/email';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -16,6 +18,9 @@ export async function POST(
   { params }: Props,
 ) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_PASSWORD_RESET_SEND);
+    if (denied) return denied;
+
     const { id } = await params;
 
     // Ensure the user exists.

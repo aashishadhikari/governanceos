@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Header from '@/components/layout/Header';
 import Modal from '@/components/ui/Modal';
+import AccessDenied from '@/components/ui/AccessDenied';
 import { FormField, Input, Select, Button } from '@/components/ui/FormField';
 import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw, Check } from 'lucide-react';
 import type { AppUser, UserRole } from '@/lib/db/users';
@@ -70,6 +71,8 @@ export default function UserManagementPage() {
   const [filterRole, setFilterRole] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [forbiddenPermission, setForbiddenPermission] = useState<string | null>(null);
 
   // Add modal
   const [addOpen, setAddOpen] = useState(false);
@@ -103,10 +106,38 @@ export default function UserManagementPage() {
 
   const fetchUsers = async () => {
     setLoading(true);
-    const res = await fetch('/api/users');
-    const data = await res.json();
-    setUserList(data);
-    setLoading(false);
+    setError('');
+    setForbiddenPermission(null);
+
+    try {
+      const res = await fetch('/api/users');
+
+      if (res.status === 403) {
+        const body = await res.json().catch(() => ({}));
+        const match = /Missing permission: (.+)$/.exec(body?.error ?? '');
+        setForbiddenPermission(match?.[1] ?? 'user.view');
+        setUserList([]);
+        return;
+      }
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error ?? 'Failed to load users.');
+      }
+
+      const data = await res.json();
+      if (!Array.isArray(data)) {
+        throw new Error('Failed to load users.');
+      }
+
+      setUserList(data);
+    } catch (err) {
+      console.error('Failed to load users', err);
+      setError(err instanceof Error ? err.message : 'Failed to load users.');
+      setUserList([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => { fetchUsers(); }, []);
@@ -311,6 +342,14 @@ export default function UserManagementPage() {
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
+  if (forbiddenPermission) {
+    return (
+      <AccessDenied
+        message="You don't have permission to access User Management."
+      />
+    );
+  }
+
   return (
     <div>
       <Header
@@ -379,6 +418,16 @@ export default function UserManagementPage() {
         <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
           {loading ? (
             <div className="flex items-center justify-center py-16 text-gray-400 text-sm">Loading users…</div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3 text-center px-6">
+              <p className="text-sm text-red-600">{error}</p>
+              <button
+                onClick={fetchUsers}
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Try again
+              </button>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead>

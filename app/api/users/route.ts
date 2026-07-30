@@ -11,10 +11,15 @@ import type { UserRole } from '@prisma/client';
 import { createInvitation } from '@/lib/auth/user-token';
 import { sendInvitationEmail } from '@/lib/email';
 import { Prisma } from '@prisma/client';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 
 export async function GET() {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_VIEW);
+    if (denied) return denied;
+
     const users = await prisma.user.findMany({
       orderBy: {
         name: 'asc',
@@ -59,6 +64,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_CREATE);
+    if (denied) return denied;
+
     const body = await req.json();
     const {
       name,
