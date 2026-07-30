@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { generateAlerts, updateAllHealthScores } from '@/lib/alertEngine';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function POST() {
+  const denied = await authorizeRequest(PermissionCodes.ALERT_GENERATE);
+  if (denied) return denied;
+
   let alertResult = { created: 0, skipped: 0 };
   let healthError: string | null = null;
   let alertError: string | null = null;

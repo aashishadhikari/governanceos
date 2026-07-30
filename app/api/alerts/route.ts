@@ -4,9 +4,14 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function GET(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ALERT_VIEW);
+    if (denied) return denied;
+
     const { searchParams } = new URL(request.url);
     const severity = searchParams.get('severity');
     const status = searchParams.get('status');
@@ -50,6 +55,9 @@ export async function GET(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ALERT_UPDATE);
+    if (denied) return denied;
+
     const body = await request.json();
     const { alertIds, status } = body;
 

@@ -56,4 +56,8 @@ export const PermissionCodes = {
   CAPITAL_VIEW: "capital.view",
   CAPITAL_EDIT: "capital.edit",
   CAPITAL_IMPORT: "capital.import",
+
+  ALERT_VIEW: "alert.view",
+  ALERT_UPDATE: "alert.update",
+  ALERT_GENERATE: "alert.generate",
 } as const;
