@@ -60,4 +60,8 @@ export const PermissionCodes = {
   ALERT_VIEW: "alert.view",
   ALERT_UPDATE: "alert.update",
   ALERT_GENERATE: "alert.generate",
+
+  DOCUMENT_VIEW: "document.view",
+  DOCUMENT_UPLOAD: "document.upload",
+  DOCUMENT_DELETE: "document.delete",
 } as const;

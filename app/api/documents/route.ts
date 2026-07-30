@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.DOCUMENT_VIEW);
+    if (denied) return denied;
+
     const { searchParams } = new URL(req.url);
     const entityId = searchParams.get('entityId') || undefined;
     const category = searchParams.get('category') || undefined;
@@ -41,6 +46,9 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.DOCUMENT_UPLOAD);
+    if (denied) return denied;
+
     const body = await req.json();
     const { entityId, name, fileName, category, fileType, fileSize, uploadedBy, notes, tags, storageUrl } = body;
 

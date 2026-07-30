@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { writeRequestAuditLog } from "@/lib/audit";
-import { getAuthSession } from "@/lib/auth/session";
+import { getAuthSession, authorizeRequest } from "@/lib/auth/session";
+import { PermissionCodes } from "@/lib/auth/permission-codes";
 
 // Soft delete document by ID
 export async function DELETE(
@@ -9,6 +10,9 @@ export async function DELETE(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const denied = await authorizeRequest(PermissionCodes.DOCUMENT_DELETE);
+        if (denied) return denied;
+
         const { id } = await params;
 
         const document = await prisma.document.findUnique({

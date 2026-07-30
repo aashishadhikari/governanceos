@@ -2,6 +2,8 @@ export const runtime = "nodejs";
 import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 const MAX_UPLOAD_MB = Number(
   process.env.MAX_DOCUMENT_UPLOAD_MB ?? 50
 );
@@ -14,6 +16,9 @@ const MAX_UPLOAD_BYTES =
 // Saves to public/uploads/docs/ and returns the public URL.
 export async function POST(req: NextRequest) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.DOCUMENT_UPLOAD);
+    if (denied) return denied;
+
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     // DEBUG: Log incoming upload information.
