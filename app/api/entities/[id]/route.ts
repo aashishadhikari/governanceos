@@ -4,6 +4,8 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 // PATCH /api/entities/[id] — update entity fields in place
 export async function PATCH(
@@ -11,6 +13,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ENTITY_EDIT);
+    if (denied) return denied;
+
     const { id } = await params;
     const body = await request.json();
 
@@ -69,6 +74,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ENTITY_DELETE);
+    if (denied) return denied;
+
     const { id } = await params;
 
     // Check whether the entity exists

@@ -8,6 +8,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -45,6 +47,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await authorizeRequest(PermissionCodes.ENTITY_TOR_SETTINGS_MANAGE);
+  if (denied) return denied;
+
   const { id } = await params;
 
   try {
@@ -79,6 +84,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await authorizeRequest(PermissionCodes.ENTITY_TOR_SETTINGS_MANAGE);
+  if (denied) return denied;
+
   const { id } = await params;
 
   const contentType = request.headers.get('content-type') ?? '';

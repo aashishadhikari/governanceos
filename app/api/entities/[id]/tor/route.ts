@@ -19,6 +19,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEntities, getDirectors } from '@/lib/db/queries';
 import { getJurisdictionTemplate } from '@/lib/tor/jurisdictions';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -562,6 +564,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await authorizeRequest(PermissionCodes.ENTITY_TOR_GENERATE);
+  if (denied) return denied;
+
   await params; // consume params (entity validation not needed for status check)
   return NextResponse.json({
     aiEnabled: !!process.env.ANTHROPIC_API_KEY,
@@ -573,6 +578,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.ENTITY_TOR_GENERATE);
+    if (denied) return denied;
+
     const { id } = await params;
 
     const [entities, directors] = await Promise.all([getEntities(), getDirectors()]);

@@ -1,8 +1,8 @@
 // String permission codes used by the authorization layer.
 //
-// Roles and Users permissions are currently defined here, matching the
-// permissions currently enforced by the application and seeded in
-// scripts/seed-permissions.ts.
+// Roles, Users, and Entities permissions are currently defined here,
+// matching the permissions currently enforced by the application and
+// seeded in scripts/seed-permissions.ts.
 //
 // Additional module permission codes should be added incrementally as
 // authorization is implemented for each module.
@@ -21,4 +21,11 @@ export const PermissionCodes = {
   USER_EDIT: "user.edit",
   USER_DEACTIVATE: "user.deactivate",
   USER_PASSWORD_RESET_SEND: "user.password_reset.send",
+
+  ENTITY_VIEW: "entity.view",
+  ENTITY_CREATE: "entity.create",
+  ENTITY_EDIT: "entity.edit",
+  ENTITY_DELETE: "entity.delete",
+  ENTITY_TOR_GENERATE: "entity.tor.generate",
+  ENTITY_TOR_SETTINGS_MANAGE: "entity.tor.settings.manage",
 } as const;
