@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils';
 import {
   Building2, LayoutDashboard, Calendar, FileText,
   Users, TrendingUp, Bell, ChevronRight, Shield,
-  Globe, LogOut, UserCog, ChevronDown, ClipboardList,
+  LogOut, UserCog, ChevronDown, ClipboardList,
   GitBranch, MessageSquarePlus, ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -77,8 +77,8 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
-            <Globe className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+            <img src="/isend-logo.png" alt="iSend" className="w-6 h-6 object-contain" />
           </div>
           <div>
             <p className="font-semibold text-white text-sm leading-tight">ISEND</p>

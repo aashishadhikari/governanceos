@@ -1,9 +1,9 @@
 // String permission codes used by the authorization layer.
 //
-// Roles, Users, Entities, Directors, Board Meetings, Calendar, and
-// Compliance permissions are currently defined here, matching the
-// permissions currently enforced by the application and seeded in
-// scripts/seed-permissions.ts.
+// Roles, Users, Entities, Directors, Board Meetings, Calendar,
+// Compliance, and Licenses permissions are currently defined here,
+// matching the permissions currently enforced by the application and
+// seeded in scripts/seed-permissions.ts.
 //
 // Additional module permission codes should be added incrementally as
 // authorization is implemented for each module.
@@ -50,4 +50,7 @@ export const PermissionCodes = {
   COMPLIANCE_IMPORT: "compliance.import",
   COMPLIANCE_CLEAR: "compliance.clear",
   COMPLIANCE_CALENDAR_IMPORT: "compliance.calendar.import",
+
+  LICENSE_VIEW: "license.view",
+  LICENSE_CREATE: "license.create",
 } as const;
