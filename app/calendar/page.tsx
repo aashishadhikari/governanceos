@@ -3,10 +3,22 @@ import { getComplianceObligations, getLicenses, getBoardMeetings, getEntities } 
 import { formatDate, daysUntil, getFlagEmoji, getStatusColor } from '@/lib/utils';
 import { Calendar, Shield, CheckSquare, Clock } from 'lucide-react';
 import Link from 'next/link';
+import { getAuthSession } from '@/lib/auth/session';
+import { hasPermission } from '@/lib/auth/permissions';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
+import AccessDenied from '@/components/ui/AccessDenied';
 
 export const dynamic = 'force-dynamic';
 
 export default async function CalendarPage() {
+  const session = await getAuthSession();
+  const allowed = await hasPermission(session, PermissionCodes.CALENDAR_VIEW);
+  if (!allowed) {
+    return (
+      <AccessDenied message="You don't have permission to access Key Dates." />
+    );
+  }
+
   const [compliance, licenses, meetings, entities] = await Promise.all([
     getComplianceObligations(),
     getLicenses(),

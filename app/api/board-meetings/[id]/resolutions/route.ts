@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 // POST /api/board-meetings/[id]/resolutions — record a resolution for a meeting
 export async function POST(
@@ -7,6 +9,9 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.MEETING_RESOLUTION_CREATE);
+    if (denied) return denied;
+
     const { id: meetingId } = await params;
     const body = await request.json();
 

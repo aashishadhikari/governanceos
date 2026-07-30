@@ -4,10 +4,15 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 // POST /api/board-meetings — schedule a new meeting (or save as draft)
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.MEETING_CREATE);
+    if (denied) return denied;
+
     const body = await request.json();
 
     const meeting = await prisma.boardMeeting.create({
