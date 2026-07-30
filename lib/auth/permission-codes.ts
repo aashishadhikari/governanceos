@@ -64,4 +64,10 @@ export const PermissionCodes = {
   DOCUMENT_VIEW: "document.view",
   DOCUMENT_UPLOAD: "document.upload",
   DOCUMENT_DELETE: "document.delete",
+
+  SUBMISSION_VIEW: "submission.view",
+  SUBMISSION_CREATE: "submission.create",
+  SUBMISSION_APPROVE: "submission.approve",
+  SUBMISSION_REJECT: "submission.reject",
+  SUBMISSION_STATUS_UPDATE: "submission.status.update",
 } as const;

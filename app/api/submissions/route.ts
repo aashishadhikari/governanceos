@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeRequest, getAuthSession } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 async function sendSlackNotification(submission: {
   id: string;
@@ -84,6 +86,9 @@ async function sendSlackNotification(submission: {
 
 export async function GET(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.SUBMISSION_VIEW);
+    if (denied) return denied;
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
     const status = searchParams.get('status');
@@ -105,7 +110,19 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.SUBMISSION_CREATE);
+    if (denied) return denied;
+
     const body = await request.json();
+
+    // submittedBy is always derived from the authenticated session — a
+    // client-supplied value is never trusted, so submissions can't be
+    // attributed to a fabricated or spoofed identity.
+    const session = await getAuthSession();
+    const submittedBy = session?.user?.email ?? session?.user?.name;
+    if (!submittedBy) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     const submission = await (prisma as any).submission.create({
       data: {
@@ -117,7 +134,7 @@ export async function POST(request: Request) {
         severity: body.severity ?? null,   // bug only
         area: body.area ?? null,           // feature only
         priority: body.priority ?? null,   // feature only
-        submittedBy: body.submittedBy ?? 'unknown',
+        submittedBy,
         status: 'open',
       },
     });
