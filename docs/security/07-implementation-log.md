@@ -10,10 +10,10 @@
 | 2 | Database schema | ✅ Done |
 | 3 | Role-Permission UI | ✅ Done |
 | 4 | API enforcement | ✅ Done for every module in the Phase 1 catalog |
-| 5 | Frontend enforcement | 🟡 Partial — page-level `AccessDenied` shipped everywhere; navigation (Sidebar) still unmigrated |
+| 5 | Frontend enforcement | ✅ Done — page-level `AccessDenied` and navigation (Sidebar) both migrated |
 | 6 | Testing | 🟡 Partial — engine unit tests exist; per-route enforcement was verified manually, module by module, not by an automated suite |
 
-**As of this document, every cataloged module rejects unpermitted API calls with `403` and every cataloged page renders `AccessDenied` instead of its normal content when the caller lacks the required permission.** The one deliberate exception is navigation: `Sidebar.tsx` still decides what to *show* using the pre-RBAC legacy `UserRole` enum map, not the real permission set — every module's nav item, without exception, including ones fully enforced at the API/page layer. This is not a gap that was missed; it was explicitly deferred every time it came up, to be done as a single, atomic migration across all nav items at once rather than piecemeal (see "Known deferred work" below).
+**As of this document, every cataloged module rejects unpermitted API calls with `403`, every cataloged page renders `AccessDenied` instead of its normal content when the caller lacks the required permission, and the Sidebar shows only nav items the caller's real permission set actually grants.** No legacy `UserRole`-enum-based visibility remains anywhere in the navigation.
 
 ## Phase 1 — Permission catalog
 
@@ -106,13 +106,32 @@ hasPermission(session, PermissionCodes.X)
 | `GET /api/admin/migrate-director-roles` | One-time data-migration utility, not part of the Directors CRUD feature |
 | Document Vault file serving (`public/uploads/docs/*`) | Static assets — Next.js serves them directly, no route handler exists to attach a permission check to. Authenticated-only via `proxy.ts`'s blanket session gate (same as every route), never permission-checked. `PermissionCodes` intentionally omits `DOCUMENT_DOWNLOAD` as a result, even though the catalog defines `document.download` |
 
-## Phase 5 — Frontend enforcement (partial)
+## Phase 5 — Frontend enforcement
 
-**Shipped:** `components/ui/AccessDenied.tsx` — one reusable component (`message`, optional `requiredPermission`, `backHref`/`backLabel`), used identically by every module listed above. Two detection patterns, chosen per page's actual architecture rather than assumed:
+**Route-level UX:** `components/ui/AccessDenied.tsx` — one reusable component (`message`, optional `requiredPermission`, `backHref`/`backLabel`), used identically by every module listed above. Two detection patterns, chosen per page's actual architecture rather than assumed:
 - **Server Component pages** (the majority): `hasPermission()` checked before any data load, `AccessDenied` returned instead of rendering `Promise.all([...])` results.
 - **Client-fetch pages** (Users, Roles — architecturally different, pre-existing before this rollout): the initial `fetch()` detects `res.status === 403` and swaps to `AccessDenied` client-side.
 
-**Not shipped, deliberately deferred:** navigation visibility. `components/layout/Sidebar.tsx`'s `PERMISSIONS: Record<UserRole, string[]>` (legacy 5-value enum, module-level, hand-duplicated from `lib/db/users.ts`'s now-deleted `ROLE_PERMISSIONS`) still controls every nav item, unrelated to the real permission set. This was raised during the Dashboard module and decided explicitly: do the Sidebar migration once, for every module at the same time, rather than introducing a one-off permission check for a single module that would create an inconsistent hybrid (part of the sidebar on the new model, part on the old).
+**Navigation visibility (Sidebar migration):** done as a single, atomic pass across every nav item, exactly as decided when it was first deferred during the Dashboard module — not piecemeal, no hybrid state at any point.
+
+- **New:** `GET /api/me/permissions` — ownership-based (no `authorizeRequest()`, no `*.view` check), returns the caller's own effective permission codes. Same `/api/me/*` convention as the Notification platform.
+- **New:** `getSessionPermissionCodes(session)` in `lib/auth/permissions.ts` — a thin additive export wrapping the same private `getSessionPermissions()` every `hasPermission()` call already uses. No duplicated resolution logic.
+- **`components/layout/Sidebar.tsx`:** the legacy `PERMISSIONS: Record<UserRole, string[]>` map is deleted. `ALL_NAV`/`ADMIN_NAV` items now declare a real `permission: PermissionCodes.X` instead of a `module` bucket string. `Sidebar` (a Client Component, so it can't call the server-side `hasPermission()` directly) fetches its own effective permissions once on mount and filters both nav lists against the real set. While loading, both lists render empty — deny-by-default, no flash of items the user may not actually have.
+
+```text
+Sidebar.tsx (mounts once, exactly at login — see below)
+        │  fetch('/api/me/permissions')
+        ▼
+GET /api/me/permissions → getAuthSession() → getSessionPermissionCodes(session)
+        ▼
+{ permissions: string[] }
+        ▼
+ALL_NAV / ADMIN_NAV filtered on item.permission ∈ permissions
+```
+
+**Two real bugs fixed in the same pass** (found during investigation, unrelated to anything touched before): Dashboard and Org Chart were both tagged `module: 'entities'`, riding on Entities' visibility rather than their own; User Management/Roles/Submissions were bucketed under one shared `module: 'admin'` string, unable to show/hide independently. All three now check their own real permission (`dashboard.view`, `orgchart.view`, and `user.view`/`role.view`/`submission.view` respectively).
+
+**Session/JWT freshness, investigated and confirmed correct, not assumed:** `Sidebar` only mounts when `pathname !== '/login'` (`components/layout/AppShell.tsx`) — it's absent from the tree entirely on the login page, so it genuinely mounts fresh (its `useEffect` firing for the first time) exactly at the moment a user becomes authenticated. `signOut()` performs a hard browser navigation, tearing down the whole tree. Separately: `lib/auth/config.ts`'s `jwt` callback only ever sets `token.roleId` inside `if (user)`, which only runs on first sign-in — `roleId` is already sticky-until-relogin for every session consumer today, same as `role`/`department`/`title`. Given both facts, an empty-dependency `useEffect` is correct for this app's current auth lifecycle; revisit only if `session.update()` or live role changes without re-authentication are introduced later.
 
 ## Phase 6 — Testing (partial)
 
@@ -123,9 +142,9 @@ hasPermission(session, PermissionCodes.X)
 
 | Item | Where | Status |
 |---|---|---|
-| Sidebar navigation migration | `components/layout/Sidebar.tsx` | Deferred — dedicated future task, all modules at once |
+| Sidebar navigation migration | `components/layout/Sidebar.tsx` | ✅ Done — see Phase 5 above |
 | Legacy `ROLE_PERMISSIONS` map | `lib/db/users.ts` | ✅ Removed (dead code, zero remaining references) after the Users page was migrated to read real role/permission data |
-| `Sidebar.tsx`'s own duplicate `PERMISSIONS` map | `components/layout/Sidebar.tsx` | Still present — to be removed together with the Sidebar migration above |
+| `Sidebar.tsx`'s own duplicate `PERMISSIONS` map | `components/layout/Sidebar.tsx` | ✅ Removed as part of the Sidebar migration |
 | `ComplianceObligation.owner` ownership matching | `app/api/notifications/tasks/route.ts` | Free-text string match against `session.user.name`, not a `User.id` FK. Documented, not fixed — target state is migrating onto the new Notification platform (see `08-notification-platform.md`) |
 | `Submission.submittedBy` not a `User.id` FK | `app/api/submissions/route.ts`, `[id]/route.ts` | Fixed to always be session-derived (never client-trusted) as part of RBAC hardening; still a free-text `String`, not a real relation — blocking dependency for further notification integration, documented in `08-notification-platform.md` |
 | `Header.tsx` notification-bell readability | `components/layout/Header.tsx` | The `bellItems` merge (two sources, JSX embedded in a data array) was reviewed and flagged as worth a small presentational extraction (`LegacyNotificationItem`/`PlatformNotificationItem`), deliberately deferred until more notification types are live and the bell's shape has settled |
@@ -137,4 +156,5 @@ hasPermission(session, PermissionCodes.X)
 - `components/ui/AccessDenied.tsx` — added once, reused by every module
 - One or more `app/api/**/route.ts` per module — `authorizeRequest()` added as the first statement in each protected handler
 - One `app/**/page.tsx` (or the two client-fetch pages' state logic) per module
+- `app/api/me/permissions/route.ts`, `lib/auth/permissions.ts` (`getSessionPermissionCodes` export), `components/layout/Sidebar.tsx` — the Sidebar migration, done once for all modules
 - `docs/security/01`–`06` — read repeatedly for verification, not modified during the rollout itself

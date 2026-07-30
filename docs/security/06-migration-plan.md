@@ -1,6 +1,6 @@
 # Migration Plan
 
-**Status:** Implementation roadmap. This document describes the *plan*, unchanged from when it was written — for what has actually been built, see `07-implementation-log.md`, which is now current: **Phases 1–4 are complete, Phase 5 is partial (page-level `AccessDenied` shipped; navigation/Sidebar deliberately deferred), Phase 6 is partial (engine unit tests exist, per-route coverage was manual).** Each phase was still its own set of changes, reviewed and merged independently, module by module for Phase 4, consistent with this project's "one feature at a time" rule.
+**Status:** Implementation roadmap. This document describes the *plan*, unchanged from when it was written — for what has actually been built, see `07-implementation-log.md`, which is now current: **Phases 1–5 are complete, Phase 6 is partial (engine unit tests exist, per-route coverage was manual).** Each phase was still its own set of changes, reviewed and merged independently, module by module for Phase 4, in a single atomic pass for the Phase 5 Sidebar migration, consistent with this project's "one feature at a time" rule.
 
 ## Phase 1 — Permission catalog ✅ Done
 
