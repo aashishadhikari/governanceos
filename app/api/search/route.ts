@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getAuthSession } from '@/lib/auth/session';
+import { hasPermission } from '@/lib/auth/permissions';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function GET(req: NextRequest) {
   const q = req.nextUrl.searchParams.get('q')?.trim();
@@ -7,7 +10,19 @@ export async function GET(req: NextRequest) {
 
   const mode = 'insensitive' as const;
 
+  // Search has no permission of its own — per docs/security/02-permission-catalog.md,
+  // it's a read-only aggregation over other resources, filtered by whatever
+  // *.view permissions the requesting user already holds on each resource type.
+  const session = await getAuthSession();
+  const [canViewEntities, canViewDirectors, canViewDocuments, canViewMeetings] = await Promise.all([
+    hasPermission(session, PermissionCodes.ENTITY_VIEW),
+    hasPermission(session, PermissionCodes.DIRECTOR_VIEW),
+    hasPermission(session, PermissionCodes.DOCUMENT_VIEW),
+    hasPermission(session, PermissionCodes.MEETING_VIEW),
+  ]);
+
   const [entities, directors, documents, meetings] = await Promise.all([
+    !canViewEntities ? Promise.resolve([]) :
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (prisma.entity.findMany as any)({
       where: {
@@ -19,7 +34,7 @@ export async function GET(req: NextRequest) {
       },
       take: 8,
     }),
-    prisma.director.findMany({
+    !canViewDirectors ? Promise.resolve([]) : prisma.director.findMany({
       where: {
         OR: [
           { name: { contains: q, mode } },
@@ -29,7 +44,7 @@ export async function GET(req: NextRequest) {
       },
       take: 8,
     }),
-    prisma.document.findMany({
+    !canViewDocuments ? Promise.resolve([]) : prisma.document.findMany({
       where: {
         OR: [
           { name: { contains: q, mode } },
@@ -39,7 +54,7 @@ export async function GET(req: NextRequest) {
       },
       take: 8,
     }),
-    prisma.boardMeeting.findMany({
+    !canViewMeetings ? Promise.resolve([]) : prisma.boardMeeting.findMany({
       where: {
         OR: [
           { meetingType: { contains: q, mode } },
