@@ -1,15 +1,14 @@
 // String permission codes used by the authorization layer.
 //
-// Roles, Users, Entities, Directors, Board Meetings, Calendar,
-// Compliance, and Licenses permissions are currently defined here,
-// matching the permissions currently enforced by the application and
-// seeded in scripts/seed-permissions.ts.
+// This file contains the permission code constants currently enforced by
+// the application. The corresponding permission records are seeded via
+// scripts/seed-permissions.ts.
 //
-// Additional module permission codes should be added incrementally as
-// authorization is implemented for each module.
+// Add new permission constants incrementally as RBAC is implemented for
+// additional modules.
 //
-// USER_REACTIVATE is intentionally omitted because there is currently
-// no dedicated reactivation endpoint enforcing that permission.
+// USER_REACTIVATE is intentionally omitted because there is currently no
+// dedicated reactivation endpoint.
 
 export const PermissionCodes = {
   ROLE_VIEW: "role.view",
@@ -53,4 +52,8 @@ export const PermissionCodes = {
 
   LICENSE_VIEW: "license.view",
   LICENSE_CREATE: "license.create",
+
+  CAPITAL_VIEW: "capital.view",
+  CAPITAL_EDIT: "capital.edit",
+  CAPITAL_IMPORT: "capital.import",
 } as const;

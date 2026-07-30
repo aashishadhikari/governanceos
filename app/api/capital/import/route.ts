@@ -22,9 +22,14 @@ import { parseCsv } from '@/lib/csv';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.CAPITAL_IMPORT);
+    if (denied) return denied;
+
     const form = await request.formData();
     const file = form.get('file');
     if (!file || !(file instanceof File)) {

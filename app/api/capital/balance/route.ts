@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getBankAccounts, getRegulatoryCapital, getEntities } from '@/lib/db/queries';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 /**
  * GET /api/capital/balance
@@ -15,6 +17,9 @@ import { getBankAccounts, getRegulatoryCapital, getEntities } from '@/lib/db/que
  *   This endpoint will then reflect real-time data.
  */
 export async function GET() {
+  const denied = await authorizeRequest(PermissionCodes.CAPITAL_VIEW);
+  if (denied) return denied;
+
   const [bankAccounts, regulatoryCapital, entities] = await Promise.all([
     getBankAccounts(),
     getRegulatoryCapital(),
