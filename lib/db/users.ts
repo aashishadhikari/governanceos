@@ -12,14 +12,6 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   viewer: 'Viewer',
 };
 
-export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
-  super_admin: ['entities', 'directors', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
-  admin: ['entities', 'directors', 'compliance', 'licenses', 'capital', 'alerts', 'documents'],
-  legal: ['entities', 'directors', 'compliance', 'licenses', 'alerts', 'documents'],
-  finance: ['entities', 'compliance', 'capital', 'alerts'],
-  viewer: ['entities', 'directors', 'compliance', 'licenses'],
-};
-
 export interface AppUser {
   id: string;
   name: string;
