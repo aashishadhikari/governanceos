@@ -4,9 +4,14 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function GET(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.DIRECTOR_VIEW);
+    if (denied) return denied;
+
     const { searchParams } = new URL(request.url);
     const entityId = searchParams.get('entityId');
     const category = searchParams.get('category'); // executive | independent | non-executive | employee
@@ -42,6 +47,9 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.DIRECTOR_CREATE);
+    if (denied) return denied;
+
     const body = await request.json();
 
     const director = await prisma.director.create({

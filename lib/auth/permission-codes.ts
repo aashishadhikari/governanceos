@@ -1,7 +1,7 @@
 // String permission codes used by the authorization layer.
 //
-// Roles, Users, and Entities permissions are currently defined here,
-// matching the permissions currently enforced by the application and
+// Roles, Users, Entities, and Directors permissions are currently defined
+// here, matching the permissions currently enforced by the application and
 // seeded in scripts/seed-permissions.ts.
 //
 // Additional module permission codes should be added incrementally as
@@ -28,4 +28,9 @@ export const PermissionCodes = {
   ENTITY_DELETE: "entity.delete",
   ENTITY_TOR_GENERATE: "entity.tor.generate",
   ENTITY_TOR_SETTINGS_MANAGE: "entity.tor.settings.manage",
+
+  DIRECTOR_VIEW: "director.view",
+  DIRECTOR_CREATE: "director.create",
+  DIRECTOR_EDIT: "director.edit",
+  DIRECTOR_DELETE: "director.delete",
 } as const;
