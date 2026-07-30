@@ -70,4 +70,6 @@ export const PermissionCodes = {
   SUBMISSION_APPROVE: "submission.approve",
   SUBMISSION_REJECT: "submission.reject",
   SUBMISSION_STATUS_UPDATE: "submission.status.update",
+
+  ORGCHART_VIEW: "orgchart.view",
 } as const;
