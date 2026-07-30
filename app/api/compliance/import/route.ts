@@ -25,6 +25,8 @@ import { parseCsv } from '@/lib/csv';
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
 import type { ComplianceStatus } from '@prisma/client';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 const VALID_STATUSES: ComplianceStatus[] = [
   'pending',
@@ -36,6 +38,9 @@ const VALID_STATUSES: ComplianceStatus[] = [
 
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_IMPORT);
+    if (denied) return denied;
+
     const form = await request.formData();
     const file = form.get('file');
     if (!file || !(file instanceof File)) {

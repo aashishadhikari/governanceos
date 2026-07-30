@@ -24,6 +24,8 @@
  */
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,9 @@ function matchEntity(
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(request: Request) {
+  const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_VIEW);
+  if (denied) return denied;
+
   const { searchParams } = new URL(request.url);
   const year = searchParams.get('year') ? Number(searchParams.get('year')) : undefined;
 
@@ -112,6 +117,9 @@ interface ImportPayload {
 
 export async function POST(request: Request) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_CALENDAR_IMPORT);
+    if (denied) return denied;
+
     const body: ImportPayload = await request.json();
     const { year, entries, replaceExisting = false } = body;
 

@@ -13,11 +13,16 @@ import prisma from '@/lib/prisma';
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
 import { pushStatusToJira } from '@/lib/jiraSync';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_EDIT);
+  if (denied) return denied;
+
   const { id } = await params;
   try {
     const body = await request.json();
@@ -88,6 +93,9 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_DELETE);
+  if (denied) return denied;
+
   const { id } = await params;
   try {
     const existing = await prisma.complianceObligation.findUnique({ where: { id } });
