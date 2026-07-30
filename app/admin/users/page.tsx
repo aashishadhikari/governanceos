@@ -7,15 +7,35 @@ import AccessDenied from '@/components/ui/AccessDenied';
 import { FormField, Input, Select, Button } from '@/components/ui/FormField';
 import { Users, Plus, Pencil, KeyRound, UserX, UserCheck, ShieldCheck, Eye, Search, RefreshCw, Check } from 'lucide-react';
 import type { AppUser, UserRole } from '@/lib/db/users';
-import { ROLE_LABELS, ROLE_PERMISSIONS } from '@/lib/db/users';
+import { ROLE_LABELS } from '@/lib/db/users';
 import { formatDate } from '@/lib/utils';
+
+type PermissionSummary = {
+  code: string;
+  name: string;
+  description: string | null;
+  module: string;
+};
 
 type RoleOption = {
   id: string;
   name: string;
   description: string | null;
   isSystem: boolean;
+  // GET /api/roles already includes each role's assigned permissions —
+  // reused here instead of the old hardcoded ROLE_PERMISSIONS map.
+  permissions: PermissionSummary[];
 };
+
+// Turns a Permission.module slug (e.g. "governance-team") into a display
+// label (e.g. "Governance Team") without a hardcoded per-module map, so a
+// newly seeded module shows up correctly with zero changes to this file.
+function humanizeModule(module: string): string {
+  return module
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 
@@ -99,10 +119,16 @@ export default function UserManagementPage() {
   const [resetSaved, setResetSaved] = useState(false);
   const [resetError, setResetError] = useState('');
 
-  // Selected role for permissions preview
-  const [previewRole, setPreviewRole] = useState<UserRole>('viewer');
+  // Selected role (by id) for permissions preview — reads real RBAC data
+  // instead of the legacy 5-value UserRole enum, so any custom role
+  // (including one with zero permissions) can be previewed correctly.
+  const [previewRoleId, setPreviewRoleId] = useState('');
   // Available roles loaded from the Role Management module instead of hardcoded enums.
   const [roles, setRoles] = useState<RoleOption[]>([]);
+  // Full permission catalog (all modules that currently exist), so the
+  // preview grid can show every module — not just a fixed, hardcoded list —
+  // and automatically includes any newly added module.
+  const [permissionCatalog, setPermissionCatalog] = useState<PermissionSummary[]>([]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -160,6 +186,22 @@ export default function UserManagementPage() {
     }
 
     loadRoles();
+  }, []);
+  useEffect(() => {
+    // Load the full permission catalog so the preview grid can list every
+    // module that currently exists, instead of a hardcoded module list.
+    async function loadPermissionCatalog() {
+      try {
+        const response = await fetch('/api/permissions');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data)) setPermissionCatalog(data);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    loadPermissionCatalog();
   }, []);
 
   const setAdd = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -339,6 +381,20 @@ export default function UserManagementPage() {
   });
 
   const active = userList.filter(u => u.isActive);
+
+  // ─── Permission previews (real RBAC data) ──────────────────────────────────
+
+  // Every module currently in the catalog — drives the fixed set of tiles in
+  // the "Role Permissions" preview, independent of any one role's grants.
+  const allModules = Array.from(new Set(permissionCatalog.map(p => p.module))).sort();
+
+  const previewRole = roles.find(r => r.id === previewRoleId) ?? roles[0];
+  const previewModules = new Set((previewRole?.permissions ?? []).map(p => p.module));
+
+  const selectedAddRole = roles.find(r => r.id === addForm.roleId);
+  const selectedAddRoleModules = Array.from(
+    new Set((selectedAddRole?.permissions ?? []).map(p => p.module))
+  );
 
   // ─── Render ─────────────────────────────────────────────────────────────────
 
@@ -536,32 +592,26 @@ export default function UserManagementPage() {
         <div className="bg-white rounded-xl border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Role Permissions</h3>
-            <select value={previewRole} onChange={e => setPreviewRole(e.target.value as UserRole)}
+            <select value={previewRole?.id ?? ''} onChange={e => setPreviewRoleId(e.target.value)}
               className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-700">
-              {(Object.keys(ROLE_LABELS) as UserRole[]).map(r => (
-                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              {roles.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
               ))}
             </select>
           </div>
           <div className="grid grid-cols-4 gap-2">
-            {[
-              { key: 'entities', label: 'Entity Registry' },
-              { key: 'directors', label: 'Directors' },
-              { key: 'compliance', label: 'Compliance & Finance' },
-              { key: 'licenses', label: 'Licenses' },
-              { key: 'capital', label: 'Regulatory Capital' },
-              { key: 'alerts', label: 'Alerts' },
-              { key: 'documents', label: 'Document Vault' },
-              { key: 'admin', label: 'User Management' },
-            ].map(({ key, label }) => {
-              const hasAccess = ROLE_PERMISSIONS[previewRole].includes(key);
+            {allModules.map(module => {
+              const hasAccess = previewModules.has(module);
               return (
-                <div key={key} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${hasAccess ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-400 line-through'}`}>
+                <div key={module} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${hasAccess ? 'bg-green-50 text-green-800' : 'bg-gray-50 text-gray-400 line-through'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${hasAccess ? 'bg-green-500' : 'bg-gray-300'}`} />
-                  {label}
+                  {humanizeModule(module)}
                 </div>
               );
             })}
+            {allModules.length === 0 && (
+              <p className="col-span-4 text-sm text-gray-400 text-center py-4">No permissions are available.</p>
+            )}
           </div>
         </div>
       </div>
@@ -629,9 +679,13 @@ export default function UserManagementPage() {
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">This role grants access to</p>
               <div className="flex flex-wrap gap-1.5">
-                {ROLE_PERMISSIONS[addForm.role].map(p => (
-                  <span key={p} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full capitalize">{p}</span>
-                ))}
+                {selectedAddRoleModules.length > 0 ? (
+                  selectedAddRoleModules.map(module => (
+                    <span key={module} className="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{humanizeModule(module)}</span>
+                  ))
+                ) : (
+                  <span className="text-xs text-gray-400">No permissions assigned to this role.</span>
+                )}
               </div>
             </div>
 
