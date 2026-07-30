@@ -72,4 +72,6 @@ export const PermissionCodes = {
   SUBMISSION_STATUS_UPDATE: "submission.status.update",
 
   ORGCHART_VIEW: "orgchart.view",
+
+  DASHBOARD_VIEW: "dashboard.view",
 } as const;

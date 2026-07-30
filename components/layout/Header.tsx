@@ -16,6 +16,20 @@ type NotificationTask = {
   url: string;
 };
 
+// New Notification-platform item (lib/notifications) — a separate model
+// from the legacy compliance task above. Merged only for rendering in the
+// bell; the two are never normalized into a shared data type. Temporary,
+// until Compliance also migrates onto the new platform (see notification
+// architecture doc) and this legacy feed is retired.
+type PlatformNotification = {
+  id: string;
+  title: string;
+  message: string;
+  url: string;
+  readAt: string | null;
+  createdAt: string;
+};
+
 interface HeaderProps {
   title: string;
   subtitle?: string;
@@ -28,6 +42,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
 
   const [tasks, setTasks] = useState<NotificationTask[]>([]);
+  const [platformNotifications, setPlatformNotifications] = useState<PlatformNotification[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
 
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -67,7 +82,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
     []);
 
   useEffect(() => {
-    loadTasks();
+    loadNotifications();
   }, []);
 
   function handleSearch(e: React.FormEvent) {
@@ -80,23 +95,117 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const today = new Date().toLocaleDateString('en-GB', {
     day: 'numeric', month: 'long', year: 'numeric',
   });
-  async function loadTasks() {
+  async function loadLegacyTasks() {
     try {
-      setLoadingTasks(true);
-
       const res = await fetch('/api/notifications/tasks');
       if (!res.ok) return;
       const json = await res.json();
       setTasks(json.tasks);
-    }
-    catch (err) {
+    } catch (err) {
       console.error(err);
     }
+  }
 
-    finally {
+  async function loadPlatformNotifications() {
+    try {
+      const res = await fetch('/api/me/notifications');
+      if (!res.ok) return;
+      const json = await res.json();
+      setPlatformNotifications(json.data ?? []);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  // Fetches both notification sources in parallel — the legacy compliance
+  // feed and the new Notification-platform feed. Temporary MVP merge, not
+  // a shared data model; see the PlatformNotification comment above.
+  async function loadNotifications() {
+    setLoadingTasks(true);
+    try {
+      await Promise.all([loadLegacyTasks(), loadPlatformNotifications()]);
+    } finally {
       setLoadingTasks(false);
     }
   }
+
+  // Platform notifications mark themselves read, then navigate — unlike
+  // legacy compliance items, which only navigate (no read/unread state
+  // exists for them today).
+  async function handlePlatformNotificationClick(n: PlatformNotification) {
+    setShowNotifications(false);
+    try {
+      await fetch(`/api/me/notifications/${n.id}/read`, { method: 'PATCH' });
+    } catch (err) {
+      console.error(err);
+    }
+    setPlatformNotifications(prev =>
+      prev.map(p => (p.id === n.id ? { ...p, readAt: new Date().toISOString() } : p))
+    );
+    router.push(n.url);
+  }
+  const unreadPlatformCount = platformNotifications.filter(n => !n.readAt).length;
+  const totalPending = tasks.length + unreadPlatformCount;
+
+  // Merged purely for rendering/sorting the bell — each item keeps its own
+  // click behavior (legacy: navigate only; platform: mark read then
+  // navigate). Not a shared data model between the two sources.
+  const bellItems = [
+    ...tasks.map(task => ({
+      key: `legacy-${task.id}`,
+      sortDate: new Date(task.dueDate).getTime(),
+      node: (
+        <button
+          key={`legacy-${task.id}`}
+          onClick={() => {
+            setShowNotifications(false);
+            router.push(task.url);
+          }}
+          className="w-full text-left px-5 py-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
+        >
+          <div className="flex items-start gap-3">
+            <div
+              className={`mt-1 h-2.5 w-2.5 rounded-full ${task.priority === 'critical'
+                ? 'bg-red-500'
+                : task.priority === 'warning'
+                  ? 'bg-amber-500'
+                  : 'bg-blue-500'
+                }`}
+            />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900 truncate" title={task.title}>
+                {task.title}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">{task.entityName}</p>
+              <p className="text-xs mt-2 font-medium text-indigo-600">{task.status}</p>
+            </div>
+          </div>
+        </button>
+      ),
+    })),
+    ...platformNotifications.map(n => ({
+      key: `platform-${n.id}`,
+      sortDate: new Date(n.createdAt).getTime(),
+      node: (
+        <button
+          key={`platform-${n.id}`}
+          onClick={() => handlePlatformNotificationClick(n)}
+          className={`w-full text-left px-5 py-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 ${n.readAt ? 'opacity-60' : ''}`}
+        >
+          <div className="flex items-start gap-3">
+            <div className={`mt-1 h-2.5 w-2.5 rounded-full ${n.readAt ? 'bg-gray-300' : 'bg-indigo-500'}`} />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-900 truncate" title={n.title}>
+                {n.title}
+              </p>
+              <p className="text-xs text-gray-500 mt-1 line-clamp-2">{n.message}</p>
+            </div>
+          </div>
+        </button>
+      ),
+    })),
+  ].sort((a, b) => b.sortDate - a.sortDate);
+
   return (
     <header className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
       <div>
@@ -132,15 +241,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
               setShowNotifications(opening);
 
               if (opening) {
-                loadTasks();
+                loadNotifications();
               }
             }}
             className="relative p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
             <Bell className="w-5 h-5 text-gray-600" />
-            {tasks.length > 0 && (
+            {totalPending > 0 && (
               <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center border-2 border-white">
-                {tasks.length > 99 ? '99+' : tasks.length}
+                {totalPending > 99 ? '99+' : totalPending}
               </span>
             )}
           </button>
@@ -160,7 +269,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
                 </div>
 
                 <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
-                  {tasks.length} Pending
+                  {totalPending} Pending
                 </span>
               </div>
 
@@ -171,7 +280,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
                   Loading notifications...
                 </div>
 
-              ) : tasks.length === 0 ? (
+              ) : bellItems.length === 0 ? (
 
                 <div className="px-5 py-10 flex flex-col items-center text-center">
 
@@ -192,54 +301,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
               ) : (
 
                 <div className="max-h-96 overflow-y-auto">
-
-                  {tasks.map(task => (
-
-                    <button
-                      key={task.id}
-                      onClick={() => {
-                        setShowNotifications(false);
-                        router.push(task.url);
-                      }}
-                      className="w-full text-left px-5 py-4 hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                    >
-
-                      <div className="flex items-start gap-3">
-
-                        <div
-                          className={`mt-1 h-2.5 w-2.5 rounded-full ${task.priority === 'critical'
-                            ? 'bg-red-500'
-                            : task.priority === 'warning'
-                              ? 'bg-amber-500'
-                              : 'bg-blue-500'
-                            }`}
-                        />
-
-                        <div className="flex-1">
-
-                          <p
-                            className="text-sm font-medium text-gray-900 truncate"
-                            title={task.title}
-                          >
-                            {task.title}
-                          </p>
-
-                          <p className="text-xs text-gray-500 mt-1">
-                            {task.entityName}
-                          </p>
-
-                          <p className="text-xs mt-2 font-medium text-indigo-600">
-                            {task.status}
-                          </p>
-
-                        </div>
-
-                      </div>
-
-                    </button>
-
-                  ))}
-
+                  {bellItems.map(item => item.node)}
                 </div>
 
               )}
