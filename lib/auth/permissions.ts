@@ -57,6 +57,18 @@ async function getSessionPermissions(session: Session | null | undefined): Promi
   return getPermissionCodesForRole(roleId);
 }
 
+// Returns the caller's own effective permission codes as a plain array —
+// for self-service consumption (e.g. GET /api/me/permissions driving
+// Sidebar nav filtering), not for authorization decisions. Reuses the same
+// resolution as every hasPermission()/hasAnyPermission() call above; no
+// separate query, no parallel engine.
+export async function getSessionPermissionCodes(
+  session: Session | null | undefined
+): Promise<string[]> {
+  const permissions = await getSessionPermissions(session);
+  return Array.from(permissions);
+}
+
 export async function hasPermission(
   session: Session | null | undefined,
   permissionCode: string

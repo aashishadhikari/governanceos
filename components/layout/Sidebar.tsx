@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -11,41 +11,32 @@ import {
   LogOut, UserCog, ChevronDown, ClipboardList,
   GitBranch, MessageSquarePlus, ShieldCheck,
 } from 'lucide-react';
-import { useState } from 'react';
 import type { UserRole } from '@/lib/db/users';
 import { ROLE_LABELS } from '@/lib/db/users';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 const ALL_NAV = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, module: 'entities' },
-  { href: '/entities', label: 'Entities', icon: Building2, module: 'entities' },
-  { href: '/org-chart', label: 'Org Chart', icon: GitBranch, module: 'entities' },
-  { href: '/directors', label: 'Governance Team', icon: Users, module: 'directors' },
-  { href: '/board-meetings', label: 'Board Meetings', icon: ClipboardList, module: 'meetings' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: PermissionCodes.DASHBOARD_VIEW },
+  { href: '/entities', label: 'Entities', icon: Building2, permission: PermissionCodes.ENTITY_VIEW },
+  { href: '/org-chart', label: 'Org Chart', icon: GitBranch, permission: PermissionCodes.ORGCHART_VIEW },
+  { href: '/directors', label: 'Governance Team', icon: Users, permission: PermissionCodes.DIRECTOR_VIEW },
+  { href: '/board-meetings', label: 'Board Meetings', icon: ClipboardList, permission: PermissionCodes.MEETING_VIEW },
 
-  { href: '/calendar', label: 'Key Dates', icon: Calendar, module: 'calendar' },
-  { href: '/compliance/regulatory-calendar', label: 'Calendar', icon: Calendar, module: 'compliance' },
+  { href: '/calendar', label: 'Key Dates', icon: Calendar, permission: PermissionCodes.CALENDAR_VIEW },
+  { href: '/compliance/regulatory-calendar', label: 'Calendar', icon: Calendar, permission: PermissionCodes.COMPLIANCE_VIEW },
 
-  { href: '/compliance', label: 'Compliance & Finance', icon: ClipboardList, module: 'compliance', exact: true },
-  { href: '/licenses', label: 'Licenses', icon: Shield, module: 'licenses' },
-  { href: '/capital', label: 'Regulatory Capital', icon: TrendingUp, module: 'capital' },
-  { href: '/alerts', label: 'Alerts', icon: Bell, module: 'alerts', badge: true },
-  { href: '/documents', label: 'Document Vault', icon: FileText, module: 'documents' },
+  { href: '/compliance', label: 'Compliance & Finance', icon: ClipboardList, permission: PermissionCodes.COMPLIANCE_VIEW, exact: true },
+  { href: '/licenses', label: 'Licenses', icon: Shield, permission: PermissionCodes.LICENSE_VIEW },
+  { href: '/capital', label: 'Regulatory Capital', icon: TrendingUp, permission: PermissionCodes.CAPITAL_VIEW },
+  { href: '/alerts', label: 'Alerts', icon: Bell, permission: PermissionCodes.ALERT_VIEW, badge: true },
+  { href: '/documents', label: 'Document Vault', icon: FileText, permission: PermissionCodes.DOCUMENT_VIEW },
 ];
 
 const ADMIN_NAV = [
-  { href: '/admin/users', label: 'User Management', icon: UserCog, module: 'admin' },
-  { href: '/admin/roles', label: 'Roles', icon: ShieldCheck, module: 'admin' },
-  { href: '/admin/submissions', label: 'Submissions', icon: MessageSquarePlus, module: 'admin' },
+  { href: '/admin/users', label: 'User Management', icon: UserCog, permission: PermissionCodes.USER_VIEW },
+  { href: '/admin/roles', label: 'Roles', icon: ShieldCheck, permission: PermissionCodes.ROLE_VIEW },
+  { href: '/admin/submissions', label: 'Submissions', icon: MessageSquarePlus, permission: PermissionCodes.SUBMISSION_VIEW },
 ];
-
-// Permissions per role (matches ROLE_PERMISSIONS in users.ts — duplicated to avoid a server import in this client component)
-const PERMISSIONS: Record<UserRole, string[]> = {
-  super_admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
-  admin: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'capital', 'alerts', 'documents', 'admin'],
-  legal: ['entities', 'directors', 'meetings', 'compliance', 'licenses', 'alerts', 'documents'],
-  finance: ['entities', 'compliance', 'capital', 'alerts'],
-  viewer: ['entities', 'directors', 'compliance', 'licenses'],
-};
 
 const ROLE_BADGE: Record<UserRole | 'compliance' | 'mlro', string> = {
   super_admin: 'bg-purple-500/20 text-purple-200',
@@ -64,11 +55,35 @@ export default function Sidebar() {
 
   const user = session?.user ?? null;
   const role = (user?.role ?? 'viewer') as UserRole;
-  //const role = (user?.role ?? 'super_admin') as UserRole;
-  const perms = PERMISSIONS[role] ?? PERMISSIONS.super_admin;
 
-  const visibleNav = ALL_NAV.filter(item => perms.includes(item.module));
-  const visibleAdmin = ADMIN_NAV.filter(item => perms.includes(item.module));
+  // Nav visibility is driven by the authenticated user's real, effective
+  // permission set (GET /api/me/permissions) — not the legacy role enum.
+  // Deny by default while loading: nothing renders until we know what the
+  // user actually has, same "no assumed access" principle as the server-
+  // side authorization engine.
+  const [permissions, setPermissions] = useState<string[]>([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+    async function loadPermissions() {
+      try {
+        const res = await fetch('/api/me/permissions');
+        if (!res.ok) return;
+        const json = await res.json();
+        if (active) setPermissions(json.permissions ?? []);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (active) setPermissionsLoading(false);
+      }
+    }
+    loadPermissions();
+    return () => { active = false; };
+  }, []);
+
+  const visibleNav = permissionsLoading ? [] : ALL_NAV.filter(item => permissions.includes(item.permission));
+  const visibleAdmin = permissionsLoading ? [] : ADMIN_NAV.filter(item => permissions.includes(item.permission));
 
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'PN';
 
