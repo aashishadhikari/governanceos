@@ -598,6 +598,8 @@ enum NotificationType {
   TASK_ASSIGNED
   DOCUMENT_SHARED
   MEETING_ASSIGNED
+  USER_ROLE_CHANGED
+  FILING_DEADLINE
 }
 
 enum NotificationEntityType {
@@ -605,4 +607,5 @@ enum NotificationEntityType {
   DOCUMENT
   BOARD_MEETING
   COMPLIANCE_OBLIGATION
+  USER
 }

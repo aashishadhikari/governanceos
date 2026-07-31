@@ -197,9 +197,10 @@ export default function AlertsClient({ alerts: initialAlerts, entities }: Props)
                       </button>
                       <button
                         onClick={() => handleDismiss(alert.id)}
+                        title="Alerts reappear until the underlying issue is resolved."
                         className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1 rounded-full transition-colors"
                       >
-                        Dismiss
+                        Dismiss for now
                       </button>
                     </div>
                   </div>
@@ -232,9 +233,10 @@ export default function AlertsClient({ alerts: initialAlerts, entities }: Props)
                     </div>
                     <button
                       onClick={() => handleDismiss(alert.id)}
+                      title="Alerts reappear until the underlying issue is resolved."
                       className="text-xs text-gray-400 hover:text-gray-600 px-3 py-1 rounded-full transition-colors shrink-0"
                     >
-                      Dismiss
+                      Dismiss for now
                     </button>
                   </div>
                 );

@@ -1,1 +1,1 @@
-export {  sendInvitationEmail,  sendPasswordResetEmail, } from './email-service';
+export {  sendInvitationEmail,  sendPasswordResetEmail,  sendNotificationEmail, } from './email-service';

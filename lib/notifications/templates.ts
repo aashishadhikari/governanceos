@@ -5,6 +5,7 @@
 // never title/message/url directly.
 
 import type { NotificationType, NotificationEntityType } from '@prisma/client';
+import { ROLE_LABELS, type UserRole } from '@/lib/db/users';
 
 interface TemplateContext {
   actorName: string | null;
@@ -38,8 +39,11 @@ const TEMPLATES: Record<NotificationType, (ctx: TemplateContext) => RenderedNoti
   },
   TASK_ASSIGNED: ({ actorName, metadata }) => {
     const subject = (metadata?.subject as string | undefined) ?? 'a task';
+    const requirementType = metadata?.requirementType as string | undefined;
     return {
-      title: 'Task assigned',
+      // Business object surfaced in the title (scannable in the bell
+      // without opening the message) whenever the caller provides one.
+      title: requirementType ? `Task assigned: ${requirementType}` : 'Task assigned',
       message: actorName
         ? `${actorName} assigned you ${subject}.`
         : `You were assigned ${subject}.`,
@@ -55,12 +59,50 @@ const TEMPLATES: Record<NotificationType, (ctx: TemplateContext) => RenderedNoti
     };
   },
   MEETING_ASSIGNED: ({ actorName, metadata }) => {
-    const subject = (metadata?.meetingTitle as string | undefined) ?? 'a meeting';
+    const meetingTitle = (metadata?.meetingTitle as string | undefined) ?? 'a meeting';
     return {
-      title: 'Meeting assigned',
+      title: metadata?.meetingTitle ? `Meeting assigned: ${meetingTitle}` : 'Meeting assigned',
       message: actorName
-        ? `${actorName} added you to ${subject}.`
-        : `You were added to ${subject}.`,
+        ? `${actorName} added you to ${meetingTitle}.`
+        : `You were added to ${meetingTitle}.`,
+    };
+  },
+  USER_ROLE_CHANGED: ({ actorName, metadata }) => {
+    const rawRole = metadata?.newRole as string | undefined;
+    const newRole = (rawRole && ROLE_LABELS[rawRole as UserRole]) || rawRole || 'a new role';
+    // JWT sessions bake the role in at login (lib/auth/config.ts) — a
+    // mid-session role change has no effect until the next login, so the
+    // wording says so explicitly rather than hedging with "if needed".
+    return {
+      title: 'Your role has changed',
+      message: actorName
+        ? `${actorName} changed your role to ${newRole}. Please log out and sign in again for the new permissions to take effect.`
+        : `Your role has been changed to ${newRole}. Please log out and sign in again for the new permissions to take effect.`,
+    };
+  },
+  FILING_DEADLINE: ({ metadata }) => {
+    const subject = (metadata?.requirementType as string | undefined) ?? 'a filing';
+    const urgency = metadata?.urgency as 'due_soon' | 'overdue' | undefined;
+    const days = metadata?.daysRemaining as number | undefined;
+
+    if (urgency === 'overdue') {
+      const overdueBy = typeof days === 'number' ? Math.abs(days) : undefined;
+      return {
+        // Requirement name lives in the title so multiple filing
+        // notifications are distinguishable at a glance in the bell,
+        // without needing to read the (line-clamped) message.
+        title: `Filing overdue: ${subject}`,
+        message: overdueBy !== undefined
+          ? `Overdue by ${overdueBy} day${overdueBy === 1 ? '' : 's'}. Immediate action required.`
+          : `Overdue. Immediate action required.`,
+      };
+    }
+
+    return {
+      title: `Filing due soon: ${subject}`,
+      message: typeof days === 'number'
+        ? `Due in ${days} day${days === 1 ? '' : 's'}.`
+        : `Due soon.`,
     };
   },
 };
@@ -81,6 +123,9 @@ const ENTITY_URL_MAP: Record<NotificationEntityType, (entityId: string) => strin
   DOCUMENT: () => '/documents',
   BOARD_MEETING: (entityId) => `/board-meetings/${entityId}`,
   COMPLIANCE_OBLIGATION: () => '/compliance',
+  // No per-user profile/account page exists yet — fall back to the
+  // dashboard, which every authenticated user can reach regardless of role.
+  USER: () => '/',
 };
 
 export function buildNotificationUrl(entityType: NotificationEntityType, entityId: string): string {

@@ -4,8 +4,9 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
-import { authorizeRequest } from '@/lib/auth/session';
+import { authorizeRequest, getAuthSession } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
+import { notifyInvitedDirectors } from '@/lib/notifications/meetingInvitations';
 
 // POST /api/board-meetings — schedule a new meeting (or save as draft)
 export async function POST(request: Request) {
@@ -57,6 +58,13 @@ export async function POST(request: Request) {
       entityId: meeting.entityId,
       newValues: meeting,
     });
+
+    // All invitees on a brand-new meeting are newly invited by definition.
+    if (Array.isArray(body.invitedDirectors) && body.invitedDirectors.length > 0) {
+      const session = await getAuthSession();
+      notifyInvitedDirectors(meeting, body.invitedDirectors, session?.user?.id ?? null)
+        .catch((err) => console.error('[board-meetings] invitation notify batch failed', err));
+    }
 
     return NextResponse.json({ data: meeting }, { status: 201 });
   } catch (err) {

@@ -10,8 +10,9 @@ import prisma from '@/lib/prisma';
 // - client IP address
 // - browser User-Agent
 import { writeRequestAuditLog } from '@/lib/audit';
-import { authorizeRequest } from '@/lib/auth/session';
+import { authorizeRequest, getAuthSession } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
+import { createNotification } from '@/lib/notifications/service';
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -88,6 +89,22 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       oldValues: user,
       newValues: updated,
     });
+
+    // Notify the affected user only if their persisted role actually
+    // changed — compare the two committed rows, same rule as the
+    // Submissions reference implementation (an unchanged-role no-op payload
+    // must never generate a notification).
+    if (updated.role !== user.role) {
+      const session = await getAuthSession();
+      createNotification({
+        type: 'USER_ROLE_CHANGED',
+        recipientId: id,
+        actorId: session?.user?.id ?? null,
+        entityType: 'USER',
+        entityId: id,
+        metadata: { oldRole: user.role, newRole: updated.role },
+      }).catch((err) => console.error('[users] role-change notification failed', err));
+    }
 
     return NextResponse.json(updated);
   } catch (err) {

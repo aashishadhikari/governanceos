@@ -4,8 +4,9 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
-import { authorizeRequest } from '@/lib/auth/session';
+import { authorizeRequest, getAuthSession } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
+import { notifyInvitedDirectors } from '@/lib/notifications/meetingInvitations';
 
 // PATCH /api/board-meetings/[id] — update meeting fields (edit, confirm held, save notes)
 export async function PATCH(
@@ -51,6 +52,20 @@ export async function PATCH(
 
     // If a new invitedDirectors list was provided, sync attendees
     if (Array.isArray(body.invitedDirectors)) {
+      // Capture the attendee set as it existed before the resync — the
+      // form always resubmits the full current list on every edit (even
+      // unrelated ones like changing the time), and this delete+recreate
+      // would otherwise re-notify every already-invited director on every
+      // save. Only directors absent from this "before" set are newly invited.
+      const previousAttendees = await prisma.meetingAttendee.findMany({
+        where: { meetingId: id },
+        select: { directorId: true },
+      });
+      const previousDirectorIds = new Set(previousAttendees.map((a) => a.directorId));
+      const newlyInvited = (body.invitedDirectors as string[]).filter(
+        (directorId) => !previousDirectorIds.has(directorId),
+      );
+
       // Delete existing attendees and re-create
       await prisma.meetingAttendee.deleteMany({ where: { meetingId: id } });
       if (body.invitedDirectors.length > 0) {
@@ -62,6 +77,12 @@ export async function PATCH(
           })),
           skipDuplicates: true,
         });
+      }
+
+      if (newlyInvited.length > 0) {
+        const session = await getAuthSession();
+        notifyInvitedDirectors(updated, newlyInvited, session?.user?.id ?? null)
+          .catch((err) => console.error('[board-meetings] invitation notify batch failed', err));
       }
     }
 

@@ -9,6 +9,9 @@
  */
 
 import prisma from '@/lib/prisma';
+import { createNotification } from '@/lib/notifications/service';
+import { resolveUserByEmailOrName } from '@/lib/notifications/resolveRecipient';
+import { sendNotificationEmail } from '@/lib/email';
 
 function daysUntil(date: Date): number {
   const now = new Date();
@@ -23,6 +26,82 @@ interface AlertCandidate {
   severity: 'critical' | 'warning' | 'info';
   category: string;
   relatedId: string;
+  // Present only for candidates that should also produce a personal
+  // Notification (Filing Due Soon / Filing Overdue). Dedup for this is
+  // independent of the Alert row above — see maybeNotifyFilingDeadline.
+  notify?: {
+    ownerRaw: string;
+    requirementType: string;
+    regulator: string;
+    urgency: 'due_soon' | 'overdue';
+    daysRemaining: number;
+  };
+}
+
+// Sends the FILING_DEADLINE notification (+ email) for a compliance
+// obligation, deduplicated against the Notification table itself rather
+// than against the Alert model's lifecycle. Scoped by
+// (recipient, type, entity, urgency) so:
+//   - a due-soon notification already sent doesn't block a later, distinct
+//     overdue notification for the same obligation (escalation must fire),
+//   - repeated generateAlerts() runs at the *same* urgency don't re-notify,
+//     and this holds even if the underlying Alert row was read or
+//     dismissed in between — Alert-triage actions must never re-arm a
+//     personal notification for an unchanged due date.
+async function maybeNotifyFilingDeadline(
+  obligationId: string,
+  notify: NonNullable<AlertCandidate['notify']>,
+): Promise<void> {
+  const recipientId = await resolveUserByEmailOrName(notify.ownerRaw);
+  if (!recipientId) return;
+
+  const alreadyNotified = await prisma.notification.findFirst({
+    where: {
+      recipientId,
+      type: 'FILING_DEADLINE',
+      entityType: 'COMPLIANCE_OBLIGATION',
+      entityId: obligationId,
+      metadata: { path: ['urgency'], equals: notify.urgency },
+    },
+  });
+  if (alreadyNotified) return;
+
+  // Email must never fire independently of the notification it accompanies.
+  // Previously both calls were fire-and-forget siblings with no dependency
+  // between them — sharing the dedup check above in name only. Awaiting
+  // the write and gating the email on its success makes them one atomic
+  // decision: no notification recorded means no email either.
+  try {
+    await createNotification({
+      type: 'FILING_DEADLINE',
+      recipientId,
+      actorId: null,
+      entityType: 'COMPLIANCE_OBLIGATION',
+      entityId: obligationId,
+      metadata: {
+        requirementType: notify.requirementType,
+        urgency: notify.urgency,
+        daysRemaining: notify.daysRemaining,
+      },
+    });
+  } catch (err) {
+    console.error('[alertEngine] filing-deadline notification failed', err);
+    return;
+  }
+
+  const recipientUser = await prisma.user.findUnique({ where: { id: recipientId }, select: { name: true, email: true } });
+  if (recipientUser) {
+    const overdue = notify.urgency === 'overdue';
+    sendNotificationEmail(recipientUser.email, {
+      recipientName: recipientUser.name,
+      heading: overdue ? 'Filing overdue' : 'Filing due soon',
+      message: overdue
+        ? `"${notify.requirementType}" for ${notify.regulator} was due ${Math.abs(notify.daysRemaining)} day(s) ago. Immediate action required.`
+        : `"${notify.requirementType}" for ${notify.regulator} is due in ${notify.daysRemaining} day(s).`,
+      actionUrl: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/compliance`,
+      actionText: 'Complete Filing',
+    }).catch((err) => console.error('[alertEngine] filing-deadline email failed', err));
+  }
 }
 
 export async function generateAlerts(): Promise<{ created: number; skipped: number }> {
@@ -43,6 +122,7 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
         severity: 'critical',
         category: 'compliance',
         relatedId: ob.id,
+        notify: { ownerRaw: ob.owner, requirementType: ob.requirementType, regulator: ob.regulator, urgency: 'overdue', daysRemaining: days },
       });
     } else if (days <= 30) {
       candidates.push({
@@ -52,6 +132,7 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
         severity: 'critical',
         category: 'compliance',
         relatedId: ob.id,
+        notify: { ownerRaw: ob.owner, requirementType: ob.requirementType, regulator: ob.regulator, urgency: 'due_soon', daysRemaining: days },
       });
     } else if (days <= 60) {
       candidates.push({
@@ -180,10 +261,23 @@ export async function generateAlerts(): Promise<{ created: number; skipped: numb
     });
     if (existing) {
       skipped++;
-      continue;
+    } else {
+      // `notify` isn't a column on Alert — strip it before persisting.
+      const { notify, ...alertData } = c;
+      await prisma.alert.create({ data: alertData as any });
+      created++;
     }
-    await prisma.alert.create({ data: c as any });
-    created++;
+
+    // Deliberately NOT gated on the Alert-level check above: the personal
+    // notification has its own dedup (by recipient/type/entity/urgency,
+    // via maybeNotifyFilingDeadline below) so it must be evaluated every
+    // run regardless of whether the org-wide Alert row already existed —
+    // otherwise an un-dismissed 90-day Alert would permanently block the
+    // later, more urgent due-soon/overdue notification for the same
+    // obligation from ever firing.
+    if (c.notify) {
+      await maybeNotifyFilingDeadline(c.relatedId, c.notify);
+    }
   }
 
   return { created, skipped };

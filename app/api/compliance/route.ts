@@ -5,8 +5,11 @@ import prisma from '@/lib/prisma';
 // Automatically records the authenticated user,
 // client IP address and browser User-Agent.
 import { writeRequestAuditLog } from '@/lib/audit';
-import { authorizeRequest } from '@/lib/auth/session';
+import { authorizeRequest, getAuthSession } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
+import { createNotification } from '@/lib/notifications/service';
+import { resolveUserByEmailOrName } from '@/lib/notifications/resolveRecipient';
+import { sendNotificationEmail } from '@/lib/email';
 
 const VALID_STATUSES: ComplianceStatus[] = [
   'pending',
@@ -104,6 +107,33 @@ export async function POST(request: Request) {
       entityId: obligation.entityId,
       newValues: obligation,
     });
+
+    // Notify the owner — best-effort resolution since `owner` is free text,
+    // not a User.id FK (same known limitation as Submission.submittedBy).
+    // Silently skip if it doesn't resolve to a platform user.
+    const recipient = await resolveUserByEmailOrName(obligation.owner);
+    if (recipient) {
+      const session = await getAuthSession();
+      createNotification({
+        type: 'TASK_ASSIGNED',
+        recipientId: recipient,
+        actorId: session?.user?.id ?? null,
+        entityType: 'COMPLIANCE_OBLIGATION',
+        entityId: obligation.id,
+        metadata: { subject: `the "${obligation.requirementType}" obligation`, requirementType: obligation.requirementType },
+      }).catch((err) => console.error('[compliance] obligation-assigned notification failed', err));
+
+      const recipientUser = await prisma.user.findUnique({ where: { id: recipient }, select: { name: true, email: true } });
+      if (recipientUser) {
+        sendNotificationEmail(recipientUser.email, {
+          recipientName: recipientUser.name,
+          heading: 'New compliance obligation assigned',
+          message: `You have been assigned "${obligation.requirementType}" (${obligation.regulator}), due ${obligation.dueDate.toDateString()}.`,
+          actionUrl: `${process.env.NEXTAUTH_URL ?? 'http://localhost:3000'}/compliance`,
+          actionText: 'Review Obligation',
+        }).catch((err) => console.error('[compliance] obligation-assigned email failed', err));
+      }
+    }
 
     return NextResponse.json({ data: obligation }, { status: 201 });
   } catch (error) {
