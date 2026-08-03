@@ -200,6 +200,27 @@ To sync compliance obligations from Jira:
 
 ---
 
+## Troubleshooting
+
+**API routes unexpectedly return 404, or `/api/auth/*` returns HTML instead of JSON**
+
+If you see errors like:
+
+```
+GET /api/auth/session 404
+[next-auth][error][CLIENT_FETCH_ERROR] Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+```
+
+this is caused by a stale or corrupted local Turbopack `.next` build cache, not an authentication or routing bug. Clear the cache and start a fresh dev server:
+
+```bash
+npm run dev:clean
+```
+
+This removes the local `.next` build cache and restarts `next dev`. It is **not** something you need to run routinely — only reach for it when Turbopack is behaving inconsistently (unexpected 404s, routes not picking up recent changes, etc.).
+
+---
+
 ## Contributing
 
 Pull requests are welcome. For major changes, please open an issue first to discuss what you'd like to change.
