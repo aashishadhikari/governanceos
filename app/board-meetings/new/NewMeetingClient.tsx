@@ -127,6 +127,15 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
   const entityDirectors = directors.filter(d => d.isActive);
   const selectedEntity = entities.find(e => e.id === form.entityId);
 
+  // Scrolls to and focuses a required field named in the error summary,
+  // since the field itself may be several sections above the submit button.
+  function focusField(id: string) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.focus();
+  }
+
   function toggleDirector(id: string) {
     set('invitedDirectors', form.invitedDirectors.includes(id)
       ? form.invitedDirectors.filter(d => d !== id)
@@ -136,7 +145,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
   function validate(): boolean {
     const e: typeof errors = {};
     if (!form.entityId) e.entityId = 'Please select an entity';
-    if (!form.meetingDate) e.meetingDate = 'Please select a date';
+    if (!form.meetingDate) e.meetingDate = 'Please select a meeting date';
     if (!form.chair) e.chair = 'Chair is required';
     if (!form.agenda) e.agenda = 'Agenda is required';
     if (!form.location && form.locationType !== 'virtual') e.location = 'Location is required';
@@ -246,6 +255,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 Entity <span className="text-red-500">*</span>
               </label>
               <select
+                id="entityId"
                 value={form.entityId}
                 onChange={e => {
                   set('entityId', e.target.value);
@@ -283,6 +293,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 Date <span className="text-red-500">*</span>
               </label>
               <input
+                id="meetingDate"
                 type="date"
                 value={form.meetingDate}
                 onChange={e => set('meetingDate', e.target.value)}
@@ -358,6 +369,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 Physical Location <span className="text-red-500">*</span>
               </label>
               <input
+                id="location"
                 type="text"
                 value={form.location}
                 onChange={e => set('location', e.target.value)}
@@ -395,6 +407,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
                 Chair <span className="text-red-500">*</span>
               </label>
               <select
+                id="chair"
                 value={form.chair}
                 onChange={e => set('chair', e.target.value)}
                 className={cn(
@@ -443,6 +456,7 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
               Agenda <span className="text-red-500">*</span>
             </label>
             <textarea
+              id="agenda"
               value={form.agenda}
               onChange={e => set('agenda', e.target.value)}
               rows={4}
@@ -550,6 +564,30 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
               </div>
             )}
         </div>
+
+        {/* Validation summary — surfaced right above the submit buttons, since
+            the actual invalid field can be several sections further up. */}
+        {Object.keys(errors).length > 0 && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="flex items-center gap-2 text-sm font-medium text-red-700 mb-1">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              A few required fields need your attention before you can {isEdit ? 'save' : 'schedule'} this meeting
+            </p>
+            <ul className="space-y-0.5">
+              {Object.entries(errors).map(([field, message]) => (
+                <li key={field}>
+                  <button
+                    type="button"
+                    onClick={() => focusField(field)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    {message}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="border-t border-slate-200 mt-6 pt-5 pb-6">
