@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { writeRequestAuditLog } from '@/lib/audit';
 import { authorizeRequest } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
 
@@ -30,6 +31,14 @@ export async function POST(
         category:   body.category ?? 'pack',
         storageUrl: body.storageUrl || null,
       },
+    });
+
+    await writeRequestAuditLog(request, {
+      action: 'CREATE',
+      tableName: 'meeting_documents',
+      recordId: doc.id,
+      entityId: meeting.entityId,
+      newValues: doc,
     });
 
     return NextResponse.json({ data: doc }, { status: 201 });

@@ -82,8 +82,12 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     // Record the update in the audit trail.
     // recordId identifies the target user being modified.
     // The authenticated user (actor) is captured automatically.
+    // A PATCH that flips isActive false -> true is a reactivation, not a
+    // generic edit, so it gets its own dedicated audit action.
+    const isReactivation = !user.isActive && updated.isActive;
+
     await writeRequestAuditLog(req, {
-      action: 'UPDATE',
+      action: isReactivation ? 'REACTIVATE' : 'UPDATE',
       tableName: 'users',
       recordId: id,
       oldValues: user,

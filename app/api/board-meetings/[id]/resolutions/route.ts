@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { writeRequestAuditLog } from '@/lib/audit';
 import { authorizeRequest } from '@/lib/auth/session';
 import { PermissionCodes } from '@/lib/auth/permission-codes';
 
@@ -32,6 +33,14 @@ export async function POST(
         status:       body.status       ?? 'proposed',
         notes:        body.notes        || null,
       },
+    });
+
+    await writeRequestAuditLog(request, {
+      action: 'CREATE',
+      tableName: 'meeting_resolutions',
+      recordId: resolution.id,
+      entityId: meeting.entityId,
+      newValues: resolution,
     });
 
     return NextResponse.json({ data: resolution }, { status: 201 });

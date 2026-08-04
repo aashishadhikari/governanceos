@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       try {
         if (existingId) {
           // Update existing record instead of creating a duplicate
-          await prisma.complianceObligation.update({
+          const updatedObligation = await prisma.complianceObligation.update({
             where: { id: existingId },
             data: {
               regulator,
@@ -138,6 +138,15 @@ export async function POST(request: Request) {
           });
           results.push({ row: lineNo, status: 'updated' });
           updated += 1;
+
+          await writeRequestAuditLog(request, {
+            action: 'UPDATE',
+            tableName: 'compliance_obligations',
+            recordId: existingId,
+            entityId,
+            newValues: updatedObligation,
+            notes: `CSV import — row ${lineNo}`,
+          });
         } else {
           // Create new record
           const obligation = await prisma.complianceObligation.create({
