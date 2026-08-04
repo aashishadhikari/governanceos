@@ -31,7 +31,6 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
     e.preventDefault();
     setSaving(true);
     try {
-      console.log("Submitting form:", form);
       const res = await fetch('/api/entities', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,16 +106,10 @@ export default function AddEntityModal({ isOpen, onClose, entities }: Props) {
                 onChange={(e) => {
                   const value = e.target.value;
 
-                  setForm(prev => {
-                    const updated = {
-                      ...prev,
-                      parentEntityId: value,
-                    };
-
-                    console.log("Updated state:", updated);
-
-                    return updated;
-                  });
+                  setForm(prev => ({
+                    ...prev,
+                    parentEntityId: value,
+                  }));
                 }}
                 placeholder="— None (Top Level Entity) —"
                 options={entities.map(e => ({

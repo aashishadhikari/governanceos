@@ -68,6 +68,8 @@ declare module 'next-auth/jwt' {
 
 // ─── Auth options ─────────────────────────────────────────────────────────────
 
+const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+
 export const authOptions: NextAuthOptions = {
   providers: [
     /*OktaProvider({
@@ -108,12 +110,26 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // Reuses the existing failedLoginAttempts counter (already on the
+        // User model, already reset to 0 on successful login and password
+        // setup) rather than adding new rate-limiting infrastructure. There's
+        // no lockedUntil-style timestamp field, so this locks the account
+        // until an admin sends a password reset (which clears the counter)
+        // rather than a timed cooldown.
+        if (user.failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+          throw new Error('AccountLocked');
+        }
+
         const passwordMatches = await bcrypt.compare(
           credentials.password,
           user.passwordHash
         );
 
         if (!passwordMatches) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { failedLoginAttempts: { increment: 1 } },
+          });
           return null;
         }
 
@@ -151,6 +167,24 @@ export const authOptions: NextAuthOptions = {
   session: {
     strategy: 'jwt',
     maxAge: 8 * 60 * 60,   // 8-hour session
+  },
+
+  // Explicit rather than relying on NextAuth's implicit NEXTAUTH_URL-scheme
+  // detection for the secure flag — fails safe if that env var is ever
+  // misconfigured (e.g. set to http behind a TLS-terminating reverse proxy).
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === 'production'
+          ? '__Secure-next-auth.session-token'
+          : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
   },
 
   pages: {

@@ -15,18 +15,18 @@ export async function POST() {
   try {
     alertResult = await generateAlerts();
   } catch (err) {
-    const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-    console.error('[alerts/generate] generateAlerts failed:', msg);
-    alertError = msg;
+    // Full detail (including stack) stays server-side only — the client
+    // response must never include a stack trace or raw exception message.
+    console.error('[alerts/generate] generateAlerts failed:', err);
+    alertError = 'Alert generation failed. See server logs for details.';
   }
 
   // Run health score update (independently — don't let it block alerts)
   try {
     await updateAllHealthScores();
   } catch (err) {
-    const msg = err instanceof Error ? `${err.message}\n${err.stack}` : String(err);
-    console.error('[alerts/generate] updateAllHealthScores failed:', msg);
-    healthError = msg;
+    console.error('[alerts/generate] updateAllHealthScores failed:', err);
+    healthError = 'Health score update failed. See server logs for details.';
   }
 
   // If both failed, return 500 with details

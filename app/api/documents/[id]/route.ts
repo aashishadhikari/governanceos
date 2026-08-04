@@ -27,7 +27,6 @@ export async function DELETE(
         }
         // Gets the authenticated user performing the delete.
         const session = await getAuthSession();
-        console.log("DELETE called for:", id);
         const deleted = await prisma.document.update({
             where: { id },
             data: {
@@ -39,12 +38,6 @@ export async function DELETE(
                     session?.user?.email ??
                     "Unknown",
             },
-        });
-
-        console.log("Soft deleted document:", {
-            id: deleted.id,
-            deletedAt: deleted.deletedAt,
-            deletedBy: deleted.deletedBy,
         });
 
         await writeRequestAuditLog(request, {

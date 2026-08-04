@@ -18,6 +18,15 @@ function loginRedirectUrl(req: NextRequest, reason?: string) {
 export async function proxy(req: NextRequest) {
   //if (!AUTH_ENABLED) return NextResponse.next();
 
+  // Machine-to-machine POST — authenticates itself via JIRA_WEBHOOK_SECRET,
+  // never via a browser session. GET on this same path (the browser-driven
+  // "Sync from Jira" button) stays session-gated below — Next.js matchers
+  // can't scope an exclusion by HTTP method, so this is handled here instead
+  // of in the matcher config.
+  if (req.nextUrl.pathname === '/api/webhooks/jira' && req.method === 'POST') {
+    return NextResponse.next();
+  }
+
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
@@ -50,7 +59,11 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!login|setup-password|api/auth|api/setup-password|_next/static|_next/image|favicon.ico).*)',//removed 'public' from matcher which allow public folder access
+    // api/cron and api/capital/bank-sync are machine-to-machine endpoints
+    // (cron scheduler, external treasury/ERP systems) that authenticate
+    // themselves (shared secret / API key) rather than via a browser
+    // session, so they're excluded here the same way api/auth already is.
+    '/((?!login|setup-password|api/auth|api/setup-password|api/cron|api/capital/bank-sync|_next/static|_next/image|favicon.ico).*)',//removed 'public' from matcher which allow public folder access
   ],
 };
 

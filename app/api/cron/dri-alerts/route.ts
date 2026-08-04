@@ -12,21 +12,29 @@
 
 import { NextResponse } from 'next/server';
 import { runDriAlerts } from '@/lib/driAlerts';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  // Auth check — skip if CRON_SECRET not set (dev convenience)
+  // Two legitimate callers: an external cron scheduler (CRON_SECRET, no
+  // browser session) and the manual "Send Alerts Now" button in the
+  // Regulatory Calendar admin UI (browser session, no secret). This never
+  // falls back to "no check" — if CRON_SECRET isn't configured, only an
+  // authenticated, permitted user can trigger this; an external caller
+  // without the secret is rejected either way.
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization');
-    const url = new URL(request.url);
-    const querySecret = url.searchParams.get('secret');
-    const provided = authHeader?.replace('Bearer ', '') ?? querySecret;
-    if (provided !== cronSecret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const authHeader = request.headers.get('authorization');
+  const url = new URL(request.url);
+  const querySecret = url.searchParams.get('secret');
+  const providedSecret = authHeader?.replace('Bearer ', '') ?? querySecret;
+  const hasValidSecret = !!cronSecret && providedSecret === cronSecret;
+
+  if (!hasValidSecret) {
+    const denied = await authorizeRequest(PermissionCodes.ALERT_GENERATE);
+    if (denied) return denied;
   }
 
   try {
@@ -42,6 +50,6 @@ export async function GET(request: Request) {
     });
   } catch (err) {
     console.error('[cron/dri-alerts]', err);
-    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
+    return NextResponse.json({ ok: false, error: 'Failed to run DRI alerts.' }, { status: 500 });
   }
 }

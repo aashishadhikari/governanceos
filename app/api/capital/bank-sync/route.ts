@@ -75,6 +75,13 @@ interface SyncPayload {
 }
 
 export async function GET(request: Request) {
+  if (!authorised(request)) {
+    return NextResponse.json(
+      { error: 'Unauthorized — provide a valid x-api-key header.' },
+      { status: 401 }
+    );
+  }
+
   const [bankAccounts, regulatoryCapital] = await Promise.all([
     prisma.bankAccount.findMany({
       include: { entity: { select: { name: true, country: true } } },
@@ -102,10 +109,6 @@ export async function GET(request: Request) {
       regulatoryCapital: regulatoryCapital.length,
       mostRecentBankUpdate: bankAccounts[0]?.lastUpdated ?? null,
       mostRecentCapitalUpdate: regulatoryCapital[0]?.lastUpdated ?? null,
-    },
-    data: {
-      bankAccounts,
-      regulatoryCapital,
     },
   });
 }

@@ -15,7 +15,6 @@ export async function GET() {
     }
 
     const userName = session.user.name.trim();
-    console.log("Session User:", session.user);
     const obligations = await prisma.complianceObligation.findMany({
         where: {
             owner: userName,

@@ -22,6 +22,8 @@ import {
   mapJiraStatusToCompliance,
   mapFrequencyToRecurrence,
 } from '@/lib/jiraEntityMap';
+import { authorizeRequest } from '@/lib/auth/session';
+import { PermissionCodes } from '@/lib/auth/permission-codes';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,13 +102,13 @@ function parseIssue(issue: any): {
 // ── route handler ─────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // Optional secret validation
+  // Fail closed: reject if the shared secret isn't configured, rather than
+  // silently accepting any request (previous behavior skipped this check
+  // entirely whenever JIRA_WEBHOOK_SECRET was unset).
   const secret = process.env.JIRA_WEBHOOK_SECRET;
-  if (secret) {
-    const provided = req.nextUrl.searchParams.get('secret');
-    if (provided !== secret) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  const provided = req.nextUrl.searchParams.get('secret');
+  if (!secret || provided !== secret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   let body: any;
@@ -194,6 +196,13 @@ export async function POST(req: NextRequest) {
 // Requires JIRA_API_TOKEN + JIRA_EMAIL + JIRA_CLOUD_ID env vars.
 
 export async function GET(req: NextRequest) {
+  // Browser-triggered ("Sync from Jira" button + this info response) — the
+  // real Jira webhook uses POST, which authenticates via JIRA_WEBHOOK_SECRET
+  // instead. This GET path requires the same permission as CSV import, since
+  // both bring external compliance data into the system.
+  const denied = await authorizeRequest(PermissionCodes.COMPLIANCE_IMPORT);
+  if (denied) return denied;
+
   if (req.nextUrl.searchParams.get('sync') !== 'true') {
     return NextResponse.json({
       info: 'Jira webhook receiver is active. POST Jira events here.',

@@ -82,6 +82,12 @@ export default function LoginPage() {
                                     <br />
                                     Please contact your administrator.
                                 </>
+                            ) : error === 'AccountLocked' ? (
+                                <>
+                                    Too many failed login attempts.
+                                    <br />
+                                    Your account has been locked — please contact your administrator.
+                                </>
                             ) : (
                                 'Invalid email or password.'
                             )}

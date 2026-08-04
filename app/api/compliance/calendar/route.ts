@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ data: rows });
   } catch (err) {
     console.error('[GET /api/compliance/calendar]', err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to load regulatory calendar.' }, { status: 500 });
   }
 }
 
@@ -238,6 +238,6 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error('[POST /api/compliance/calendar]', err);
-    return NextResponse.json({ error: String(err) }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to import regulatory calendar.' }, { status: 500 });
   }
 }
