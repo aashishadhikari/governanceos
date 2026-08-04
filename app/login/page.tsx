@@ -21,10 +21,15 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (status === 'authenticated') {
+        // Skip the auto-redirect when we've landed on /login carrying an
+        // error (e.g. account just deactivated) — the client's cached
+        // session can briefly still read "authenticated" until it refetches,
+        // which would otherwise bounce straight back to /dashboard before
+        // the message is even visible.
+        if (status === 'authenticated' && !error) {
             router.replace('/dashboard');
         }
-    }, [status, router]);
+    }, [status, error, router]);
 
     //const handleLogin = async (e: FormEvent) => {
     const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,7 +49,7 @@ export default function LoginPage() {
         if (result?.ok) {
             router.push(callbackUrl);
         } else {
-            router.push('/login?error=CredentialsSignin');
+            router.push(`/login?error=${result?.error ?? 'CredentialsSignin'}`);
         }
     };
 
@@ -71,7 +76,15 @@ export default function LoginPage() {
                 >
                     {error && (
                         <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                            Invalid email or password.
+                            {error === 'AccountDeactivated' ? (
+                                <>
+                                    Your account has been disabled.
+                                    <br />
+                                    Please contact your administrator.
+                                </>
+                            ) : (
+                                'Invalid email or password.'
+                            )}
                         </div>
                     )}
 

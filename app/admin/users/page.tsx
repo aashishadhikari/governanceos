@@ -112,6 +112,12 @@ export default function UserManagementPage() {
   // Deactivate confirmation
   const [confirmUser, setConfirmUser] = useState<AppUser | null>(null);
   const [confirmSaving, setConfirmSaving] = useState(false);
+  const [confirmSaved, setConfirmSaved] = useState(false);
+
+  // Reactivate confirmation
+  const [reactivateUser, setReactivateUser] = useState<AppUser | null>(null);
+  const [reactivateSaving, setReactivateSaving] = useState(false);
+  const [reactivateSaved, setReactivateSaved] = useState(false);
 
   // Reset password confirmation
   const [resetUser, setResetUser] = useState<AppUser | null>(null);
@@ -359,16 +365,30 @@ export default function UserManagementPage() {
     await fetch(`/api/users/${confirmUser.id}`, { method: 'DELETE' });
     await fetchUsers();
     setConfirmSaving(false);
-    setConfirmUser(null);
+    setConfirmSaved(true);
+
+    setTimeout(() => {
+      setConfirmSaved(false);
+      setConfirmUser(null);
+    }, 3000);
   };
 
-  const handleReactivate = async (user: AppUser) => {
-    await fetch(`/api/users/${user.id}`, {
+  const handleReactivate = async () => {
+    if (!reactivateUser) return;
+    setReactivateSaving(true);
+    await fetch(`/api/users/${reactivateUser.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isActive: true }),
     });
     await fetchUsers();
+    setReactivateSaving(false);
+    setReactivateSaved(true);
+
+    setTimeout(() => {
+      setReactivateSaved(false);
+      setReactivateUser(null);
+    }, 3000);
   };
 
   // ─── Filtered list ──────────────────────────────────────────────────────────
@@ -564,13 +584,13 @@ export default function UserManagementPage() {
                             <KeyRound className="w-4 h-4" />
                           </button>
                           {user.isActive ? (
-                            <button onClick={() => setConfirmUser(user)}
+                            <button onClick={() => { setConfirmSaved(false); setConfirmUser(user); }}
                               className="p-1.5 rounded-lg text-red-600 hover:bg-gray-200 hover:text-red-700 transition-colors" title="Deactivate">
                               <UserX className="w-4 h-4" />
                             </button>
                           ) : (
                             <button
-                              onClick={() => handleReactivate(user)}
+                              onClick={() => { setReactivateSaved(false); setReactivateUser(user); }}
                               className="p-1.5 rounded-lg text-green-600 hover:bg-gray-200 hover:text-green-700 transition-colors" title="Reactivate User">
                               <UserCheck className="w-4 h-4" />
                             </button>
@@ -878,22 +898,60 @@ export default function UserManagementPage() {
 
       {/* ── Deactivate Confirm ── */}
       <Modal isOpen={!!confirmUser} onClose={() => setConfirmUser(null)} title="Deactivate User" size="sm">
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Are you sure you want to deactivate <span className="font-semibold text-gray-900">{confirmUser?.name}</span>?
-            They will lose all access to the platform and their session will be revoked.
-          </p>
-          <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
-            <Button type="button" variant="secondary" onClick={() => setConfirmUser(null)}>Cancel</Button>
-            <button
-              onClick={handleDeactivate}
-              disabled={confirmSaving}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors"
-            >
-              {confirmSaving ? 'Deactivating…' : 'Deactivate User'}
-            </button>
+        {confirmSaved ? (
+          <div className="flex flex-col items-center py-6 gap-3">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+              <Check className="w-7 h-7 text-green-700" strokeWidth={2.5} />
+            </div>
+            <p className="font-semibold text-green-800">User deactivated successfully</p>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to deactivate <span className="font-semibold text-gray-900">{confirmUser?.name}</span>?
+              They will lose all access to the platform and their session will be revoked.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+              <Button type="button" variant="secondary" onClick={() => setConfirmUser(null)}>Cancel</Button>
+              <button
+                onClick={handleDeactivate}
+                disabled={confirmSaving}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors"
+              >
+                {confirmSaving ? 'Deactivating…' : 'Deactivate User'}
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* ── Reactivate Confirm ── */}
+      <Modal isOpen={!!reactivateUser} onClose={() => setReactivateUser(null)} title="Reactivate User" size="sm">
+        {reactivateSaved ? (
+          <div className="flex flex-col items-center py-6 gap-3">
+            <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center">
+              <Check className="w-7 h-7 text-green-700" strokeWidth={2.5} />
+            </div>
+            <p className="font-semibold text-green-800">User reactivated successfully</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Are you sure you want to reactivate <span className="font-semibold text-gray-900">{reactivateUser?.name}</span>?
+              They will regain access to the platform.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+              <Button type="button" variant="secondary" onClick={() => setReactivateUser(null)}>Cancel</Button>
+              <button
+                onClick={handleReactivate}
+                disabled={reactivateSaving}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60 transition-colors"
+              >
+                {reactivateSaving ? 'Reactivating…' : 'Reactivate User'}
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

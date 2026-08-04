@@ -121,7 +121,10 @@ export default function NewMeetingClient({ entities, directors, editMeeting, edi
   const set = <K extends keyof FormData>(k: K, v: FormData[K]) =>
     setForm(p => ({ ...p, [k]: v }));
 
-  const entityDirectors = directors.filter(d => d.entityId === form.entityId && d.isActive);
+  // Meetings belong to a single entity, but attendees are often directors
+  // from other entities — so the selectable pool is all active directors
+  // platform-wide, not just those on the meeting's own entity.
+  const entityDirectors = directors.filter(d => d.isActive);
   const selectedEntity = entities.find(e => e.id === form.entityId);
 
   function toggleDirector(id: string) {

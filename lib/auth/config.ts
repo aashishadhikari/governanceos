@@ -108,10 +108,6 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
-        if (!user.isActive) {
-          return null;
-        }
-
         const passwordMatches = await bcrypt.compare(
           credentials.password,
           user.passwordHash
@@ -119,6 +115,13 @@ export const authOptions: NextAuthOptions = {
 
         if (!passwordMatches) {
           return null;
+        }
+
+        // Only distinguish a disabled account from bad credentials once the
+        // password has already been verified, so an unauthenticated caller
+        // can never learn an account's active status.
+        if (!user.isActive) {
+          throw new Error('AccountDeactivated');
         }
 
         await prisma.user.update({

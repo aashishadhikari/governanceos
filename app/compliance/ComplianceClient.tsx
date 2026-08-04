@@ -6,6 +6,7 @@ import Header from '@/components/layout/Header';
 import { formatDate, getFlagEmoji } from '@/lib/utils';
 // Modal used for creating and editing compliance obligations
 import ComplianceObligationModal from '@/components/compliance/ComplianceObligationModal';
+import Modal from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/ToastProvider';
 import {
   ClipboardCheck,
@@ -254,30 +255,12 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
-  const [clearing, setClearing] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
   const toast = useToast();
 
-
-  const handleClearAll = async () => {
-    if (!confirm(`This will permanently delete all ${initialObligations.length} compliance obligations. Are you sure?`)) return;
-    setClearing(true);
-    setImportError(null);
-    try {
-      const res = await fetch('/api/compliance/clear?confirm=yes', { method: 'DELETE' });
-      const json = await res.json();
-      if (!res.ok) {
-        setImportError(json.error || 'Clear failed');
-      } else {
-        router.refresh();
-      }
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Clear failed');
-    } finally {
-      setClearing(false);
-    }
-  };
 
   const handleJiraSync = async () => {
     setSyncing(true);
@@ -322,17 +305,13 @@ export default function ComplianceClient({ initialObligations, entities }: Props
     }
   }
 
-  async function deleteObligation(id: string) {
-    if (
-      !confirm(
-        'Delete this compliance obligation?\n\nThis action cannot be undone.'
-      )
-    ) {
-      return;
-    }
+  async function confirmDeleteObligation() {
+    if (!deleteTargetId) return;
+
+    setDeleting(true);
 
     try {
-      const res = await fetch(`/api/compliance/${id}`, {
+      const res = await fetch(`/api/compliance/${deleteTargetId}`, {
         method: 'DELETE',
       });
 
@@ -342,6 +321,7 @@ export default function ComplianceClient({ initialObligations, entities }: Props
         return;
       }
 
+      setDeleteTargetId(null);
       router.refresh();
     } catch (err) {
       alert(
@@ -349,6 +329,8 @@ export default function ComplianceClient({ initialObligations, entities }: Props
           ? err.message
           : 'Failed to delete obligation'
       );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -515,14 +497,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
           >
             <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing…' : 'Sync from Jira'}
-          </button>
-          <button
-            onClick={handleClearAll}
-            disabled={clearing || initialObligations.length === 0}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-40"
-          >
-            <X className="w-4 h-4" />
-            {clearing ? 'Clearing…' : 'Clear all'}
           </button>
         </div>
 
@@ -818,7 +792,7 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                             </button>
 
                             <button
-                              onClick={() => deleteObligation(o.id)}
+                              onClick={() => setDeleteTargetId(o.id)}
                               className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
                             >
                               Delete
@@ -973,6 +947,38 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             setSelectedObligation(null);
           }}
         />
+
+        {/* Delete Compliance Obligation confirmation */}
+        <Modal
+          isOpen={!!deleteTargetId}
+          onClose={() => setDeleteTargetId(null)}
+          title="Delete Compliance Obligation"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              Delete this compliance obligation? This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteObligation}
+                disabled={deleting}
+                className="px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleting ? 'Deleting…' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </Modal>
       </main>
     </div>
   );
