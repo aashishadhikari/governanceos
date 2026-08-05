@@ -23,7 +23,6 @@ import {
   ArrowUpDown,
   RefreshCw,
   Globe,
-  ExternalLink,
   User,
   Users,
 } from 'lucide-react';
@@ -104,13 +103,6 @@ function Avatar({ name, color }: { name: string; color: string }) {
 /** Strip leading asterisks from Jira bold-style regulators like "** FCA" → "FCA" */
 function cleanRegulator(r: string): string {
   return r?.replace(/^\*+\s*/, '').trim() ?? r;
-}
-
-/** Extract Jira issue key from description prefix like "[GRR-53] UK | Freq: Annual" */
-function extractJiraKey(desc: string | null): string | null {
-  if (!desc) return null;
-  const m = desc.match(/^\[([A-Z]+-\d+)\]/);
-  return m ? m[1] : null;
 }
 
 /** Strip Jira key prefix and "Freq:" from description for clean display */
@@ -253,36 +245,12 @@ export default function ComplianceClient({ initialObligations, entities }: Props
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const highlightedRowRef = useRef<HTMLTableRowElement>(null);
   const toast = useToast();
 
-
-  const handleJiraSync = async () => {
-    setSyncing(true);
-    setSyncResult(null);
-    setImportError(null);
-    try {
-      const res = await fetch('/api/webhooks/jira?sync=true');
-      const text = await res.text();
-      let json: any = {};
-      try { json = JSON.parse(text); } catch { /* non-JSON response */ }
-      if (!res.ok) {
-        setImportError(json.error || `Jira sync failed (${res.status})`);
-      } else {
-        setSyncResult({ created: json.created ?? 0, updated: json.updated ?? 0, skipped: json.skipped ?? 0 });
-        router.refresh();
-      }
-    } catch (err) {
-      setImportError(err instanceof Error ? err.message : 'Jira sync failed');
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   async function updateStatus(id: string, status: ComplianceStatus) {
     setUpdatingId(id);
@@ -490,13 +458,12 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             Download template
           </a>
           <button
-            onClick={handleJiraSync}
-            disabled={syncing}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            title="Pull latest changes from Jira GRR project"
+            disabled
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-white border border-gray-200 text-sm font-medium text-gray-400 opacity-50 cursor-not-allowed"
+            title="Coming Soon"
           >
-            <RefreshCw className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Sync from Jira'}
+            <RefreshCw className="w-4 h-4" />
+            Sync from Jira
           </button>
         </div>
 
@@ -581,19 +548,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
             <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <div className="flex-1">{importError}</div>
             <button onClick={() => setImportError(null)} className="text-red-500 hover:text-red-700"><X className="w-4 h-4" /></button>
-          </div>
-        )}
-
-        {syncResult && (
-          <div className="bg-green-50 border border-green-200 rounded-md p-4 text-sm text-green-900 flex items-start gap-2">
-            <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <div className="flex-1">
-              <div className="font-medium">Jira sync complete</div>
-              <div className="text-green-800 mt-0.5">
-                {syncResult.created} created, {syncResult.updated} updated, {syncResult.skipped} skipped.
-              </div>
-            </div>
-            <button onClick={() => setSyncResult(null)} className="text-green-600 hover:text-green-800"><X className="w-4 h-4" /></button>
           </div>
         )}
 
@@ -709,7 +663,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                   const cfg = STATUS_CONFIG[o.status];
                   const expanded = expandedId === o.id;
                   const isUrgent = o.daysRemaining < 0 || (o.daysRemaining <= 14 && o.status !== 'completed' && o.status !== 'not_applicable');
-                  const jiraKey = extractJiraKey(o.description);
                   const cleanedDesc = cleanDescription(o.description);
                   const { compliance: compDri, finance: finDri } = parseDris(o.notes);
 
@@ -749,11 +702,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                         <td className="px-4 py-3">
                           <div className="flex items-start gap-2 flex-wrap">
                             <div className="font-medium text-gray-900 leading-snug">{o.requirementType}</div>
-                            {jiraKey && (
-                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono bg-blue-50 text-blue-500 border border-blue-100 whitespace-nowrap mt-0.5">
-                                {jiraKey}
-                              </span>
-                            )}
                           </div>
                           {cleanedDesc && (
                             <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[280px]">{cleanedDesc}</div>
@@ -867,23 +815,6 @@ export default function ComplianceClient({ initialObligations, entities }: Props
                                 ) : (
                                   <div className="text-gray-700">{o.owner || '—'}</div>
                                 )}
-                              </div>
-                              <div>
-                                <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Jira Reference</div>
-                                <div className="text-gray-700">
-                                  {jiraKey ? (
-                                    <a
-                                      href={`${process.env.NEXT_PUBLIC_JIRA_BASE_URL ?? 'https://your-org.atlassian.net'}/browse/${jiraKey}`}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={e => e.stopPropagation()}
-                                      className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-mono text-xs"
-                                    >
-                                      {jiraKey}
-                                      <ExternalLink className="w-3 h-3" />
-                                    </a>
-                                  ) : '—'}
-                                </div>
                               </div>
                               <div>
                                 <div className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Filing Reference</div>

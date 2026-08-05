@@ -110,6 +110,16 @@ export const authOptions: NextAuthOptions = {
           return null;
         }
 
+        // An invited user who hasn't completed password setup yet has no
+        // passwordHash at all. Treat this identically to "wrong password"
+        // (generic null, not a distinct error) — bcrypt.compare(str, null)
+        // throws its own internal error message, which would otherwise leak
+        // into the redirect URL and let a caller distinguish "this email has
+        // a pending invite" from "wrong password"/"unknown email".
+        if (!user.passwordHash) {
+          return null;
+        }
+
         // Reuses the existing failedLoginAttempts counter (already on the
         // User model, already reset to 0 on successful login and password
         // setup) rather than adding new rate-limiting infrastructure. There's

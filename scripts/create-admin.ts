@@ -1,7 +1,5 @@
 import 'dotenv/config';
 
-console.log(process.env.DATABASE_URL);
-
 import { UserRole } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import prisma from '../lib/prisma';

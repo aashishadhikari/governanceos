@@ -98,8 +98,6 @@ hasPermission(session, PermissionCodes.X)
 
 | Endpoint | Why |
 |---|---|
-| `POST /api/webhooks/jira` | Genuine inbound webhook from Jira's servers, authenticated via a shared `x-api-key`/`JIRA_WEBHOOK_SECRET`, no browser session to check |
-| `GET /api/webhooks/jira?sync=true` | Manual Jira re-sync, browser-triggered but uncatalogued — explicitly decided not to reuse `compliance.import` for it |
 | `GET/POST /api/capital/bank-sync` | External treasury/ERP integration endpoint, own `x-api-key` auth. The catalog *does* define `capital.bank_sync` for it, but `authorizeRequest()` cannot apply — the real caller has no session. `PermissionCodes` intentionally omits a `CAPITAL_BANK_SYNC` constant as a result |
 | `GET /api/cron/dri-alerts` | Cron job, `CRON_SECRET`-gated, also manually triggerable from the UI — uncatalogued |
 | `GET/PUT /api/admin/dri-config` | Local JSON config file for DRI contacts — **no authentication at all today**, a real pre-existing gap, flagged not fixed |

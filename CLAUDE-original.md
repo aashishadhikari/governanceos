@@ -118,11 +118,6 @@ Key relationships:
 | `AUTH_ENABLED` | No | Set `true` to enable Okta SSO (default: `false`) |
 | `ANTHROPIC_API_KEY` | No | For Terms of Reference Stage 2 AI analysis |
 | `SLACK_WEBHOOK_URL` | No | Slack webhook for compliance alerts |
-| `JIRA_BASE_URL` | No | e.g. `https://your-org.atlassian.net` |
-| `JIRA_EMAIL` | No | Jira service account email |
-| `JIRA_API_TOKEN` | No | Jira API token |
-| `JIRA_PROJECT_KEY` | No | Jira project key |
-| `NEXT_PUBLIC_JIRA_BASE_URL` | No | Jira base URL for frontend links |
 
 ---
 
@@ -135,9 +130,7 @@ via Prisma Studio (`npm run db:studio`).
 "Terms of Reference". Stage 1 works without an API key. Stage 2 (AI clause
 extraction) requires `ANTHROPIC_API_KEY` in `.env`.
 
-**Connect Jira** — set all four `JIRA_*` variables in `.env`, then configure a
-Jira automation to POST to `/api/webhooks/jira`. Edit `lib/jiraEntityMap.ts` to
-map your Jira entity name patterns to GovernanceOS entity IDs.
+**Jira integration** — currently unavailable, planned for a future release. No configuration is required.
 
 **Connect Slack** — set `SLACK_WEBHOOK_URL` in `.env`. Compliance alerts will be
 posted automatically when obligations become overdue.

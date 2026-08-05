@@ -18,15 +18,6 @@ function loginRedirectUrl(req: NextRequest, reason?: string) {
 export async function proxy(req: NextRequest) {
   //if (!AUTH_ENABLED) return NextResponse.next();
 
-  // Machine-to-machine POST — authenticates itself via JIRA_WEBHOOK_SECRET,
-  // never via a browser session. GET on this same path (the browser-driven
-  // "Sync from Jira" button) stays session-gated below — Next.js matchers
-  // can't scope an exclusion by HTTP method, so this is handled here instead
-  // of in the matcher config.
-  if (req.nextUrl.pathname === '/api/webhooks/jira' && req.method === 'POST') {
-    return NextResponse.next();
-  }
-
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,

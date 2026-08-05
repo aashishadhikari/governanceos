@@ -107,10 +107,6 @@ Open [http://localhost:3000](http://localhost:3000). You're in — no login requ
 | `OKTA_CLIENT_SECRET` | If auth on | — | From your Okta application |
 | `OKTA_ISSUER` | If auth on | — | e.g. `https://yourorg.okta.com` |
 | `SLACK_WEBHOOK_URL` | No | — | Incoming webhook URL for compliance alerts |
-| `JIRA_BASE_URL` | No | — | e.g. `https://yourorg.atlassian.net` |
-| `JIRA_EMAIL` | No | — | Jira service account email |
-| `JIRA_API_TOKEN` | No | — | Jira API token |
-| `JIRA_PROJECT_KEY` | No | — | Jira project key |
 
 ---
 
@@ -235,9 +231,9 @@ When a user logs in via Okta for the first time, they get `viewer` role by defau
 2. Find the user and change their role
 3. Or update directly in the database via Prisma Studio
 
-### Step 4 — Configure role assignment in Jira (optional)
+### Step 4 — Jira integration
 
-In `lib/jiraEntityMap.ts`, map Jira project entity names to GovernanceOS entity IDs so compliance obligations sync automatically.
+Jira integration is currently unavailable and is planned for a future release. No configuration is required.
 
 ---
 
@@ -302,16 +298,7 @@ Alerts are sent automatically when compliance obligations become overdue or capi
 
 ### Jira Sync
 
-1. Generate a Jira API token at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens)
-2. Add to `.env`:
-   ```
-   JIRA_BASE_URL="https://yourorg.atlassian.net"
-   JIRA_EMAIL="your-service-account@company.com"
-   JIRA_API_TOKEN="your-token"
-   JIRA_PROJECT_KEY="COMP"
-   ```
-3. Edit `lib/jiraEntityMap.ts` to map Jira project names to your entity IDs
-4. Set up a Jira automation rule to POST to `https://your-app.com/api/webhooks/jira` on issue transitions
+Jira integration is currently unavailable and is planned for a future release. No configuration is required. The "Sync from Jira" control in the Compliance module is visible but disabled as a placeholder for this planned capability.
 
 ### Anthropic AI (Terms of Reference Stage 2)
 

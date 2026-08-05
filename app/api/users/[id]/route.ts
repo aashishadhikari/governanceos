@@ -18,6 +18,9 @@ interface Props { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Props) {
   try {
+    const denied = await authorizeRequest(PermissionCodes.USER_VIEW);
+    if (denied) return denied;
+
     const { id } = await params;
     const user = await prisma.user.findUnique({
       where: { id },
@@ -27,7 +30,8 @@ export async function GET(_req: NextRequest, { params }: Props) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    const { passwordHash: _omitHash, ...userSafe } = user;
+    return NextResponse.json(userSafe);
   } catch (err) {
     console.error('[GET /api/users/:id]', err);
     return NextResponse.json(
@@ -86,12 +90,17 @@ export async function PATCH(req: NextRequest, { params }: Props) {
     // generic edit, so it gets its own dedicated audit action.
     const isReactivation = !user.isActive && updated.isActive;
 
+    // passwordHash is stripped before this ever reaches the audit log or the
+    // response body — it must never leave the server, logged or not.
+    const { passwordHash: _omitOldHash, ...userOldSafe } = user;
+    const { passwordHash: _omitNewHash, ...userUpdatedSafe } = updated;
+
     await writeRequestAuditLog(req, {
       action: isReactivation ? 'REACTIVATE' : 'UPDATE',
       tableName: 'users',
       recordId: id,
-      oldValues: user,
-      newValues: updated,
+      oldValues: userOldSafe,
+      newValues: userUpdatedSafe,
     });
 
     // Notify the affected user only if their persisted role actually
@@ -110,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: Props) {
       }).catch((err) => console.error('[users] role-change notification failed', err));
     }
 
-    return NextResponse.json(updated);
+    return NextResponse.json(userUpdatedSafe);
   } catch (err) {
     console.error('[PATCH /api/users/:id]', err);
     return NextResponse.json(
@@ -150,7 +159,8 @@ export async function DELETE(req: NextRequest, { params }: Props) {
       newValues: { isActive: false },
     });
 
-    return NextResponse.json({ success: true, user: updated });
+    const { passwordHash: _omitDeactivatedHash, ...deactivatedUserSafe } = updated;
+    return NextResponse.json({ success: true, user: deactivatedUserSafe });
   } catch (err) {
     console.error('[DELETE /api/users/:id]', err);
     return NextResponse.json(

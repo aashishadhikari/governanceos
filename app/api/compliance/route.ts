@@ -141,7 +141,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json(
     {
-      error: error instanceof Error ? error.message : 'Internal Server Error',
+      error: 'Failed to create compliance obligation.',
     },
     { status: 500 }
   );

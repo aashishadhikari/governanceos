@@ -186,6 +186,7 @@ export interface Document {
   id: string;
   entityId: string;
   name: string;
+  fileName: string | null;
   category: string;
   fileType: string;
   fileSize: number;

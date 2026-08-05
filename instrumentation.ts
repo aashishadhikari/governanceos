@@ -18,8 +18,8 @@ export async function register() {
   }
 
   // Optional integrations degrade gracefully at runtime (e.g. alerts fall
-  // back to in-app only without Slack, Jira sync stays disabled without a
-  // token) — so these are warnings, not startup failures.
+  // back to in-app only without Slack) — so these are warnings, not startup
+  // failures.
   const smtpVars = ['SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD'];
   const smtpSet = smtpVars.filter((name) => !!process.env[name]);
   if (smtpSet.length > 0 && smtpSet.length < smtpVars.length) {
@@ -29,7 +29,7 @@ export async function register() {
     );
   }
 
-  const optionalSecrets = ['CRON_SECRET', 'JIRA_WEBHOOK_SECRET', 'CAPITAL_SYNC_API_KEY'];
+  const optionalSecrets = ['CRON_SECRET', 'CAPITAL_SYNC_API_KEY'];
   const missingOptional = optionalSecrets.filter((name) => !process.env[name]);
   if (missingOptional.length > 0) {
     console.warn(

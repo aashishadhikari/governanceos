@@ -28,7 +28,7 @@ GovernanceOS centralises management of legal entities, directors, board meetings
 - **Regulatory Capital** — minimum capital requirements, current balances, buffer health monitoring
 - **Alerts Centre** — critical, warning, and informational alerts surfaced on the dashboard
 - **AI Board Terms of Reference Generator** — generates a jurisdiction-aware Word (.docx) document from statutory templates for 10 countries; Stage 2 uses Claude AI to extract clauses from uploaded Constitution and SHA documents
-- **Jira Integration** — bidirectional sync of compliance obligations
+- **Jira Integration** *(planned, not available in this release)* — bidirectional sync of compliance obligations
 - **Slack Integration** — webhook-based alerts to your compliance channel
 - **Audit Trail** — append-only log of all mutations across all models
 - **Interactive Org Chart** — visual corporate structure tree
@@ -109,10 +109,6 @@ Authentication is **disabled by default** — you are signed in automatically as
 | `OKTA_CLIENT_SECRET` | If auth enabled | Okta application client secret |
 | `OKTA_ISSUER` | If auth enabled | Okta issuer URL |
 | `SLACK_WEBHOOK_URL` | No | Slack incoming webhook for compliance alerts |
-| `JIRA_BASE_URL` | No | Jira Cloud base URL for compliance sync |
-| `JIRA_EMAIL` | No | Jira service account email |
-| `JIRA_API_TOKEN` | No | Jira API token |
-| `JIRA_PROJECT_KEY` | No | Jira project key to sync with |
 
 ---
 
@@ -192,11 +188,7 @@ Navigate to any entity → click **Terms of Reference**.
 
 ## Jira Integration
 
-To sync compliance obligations from Jira:
-
-1. Set `JIRA_BASE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN`, and `JIRA_PROJECT_KEY` in `.env`
-2. Edit `lib/jiraEntityMap.ts` to map your Jira entity name patterns to GovernanceOS entity IDs
-3. The sync endpoint is `/api/webhooks/jira` — configure a Jira automation to POST to it
+Jira integration is currently unavailable and is planned for a future release. No configuration is required. The "Sync from Jira" control in the Compliance module is visible but disabled as a placeholder for this planned capability.
 
 ---
 

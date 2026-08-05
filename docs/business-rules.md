@@ -20,7 +20,6 @@ Regulatory Calendar is not a separate model — it's `ComplianceObligation` rows
 - **New Obligation Assigned** notification (`TASK_ASSIGNED`) fires once, immediately, at creation (`POST /api/compliance`) — independent of due-date bucket.
 - `owner` is a free-text `String`, not a `User` foreign key. Recipient resolution is best-effort: exact email match, then name match (`User.name` is not unique — first match wins, non-deterministic if names collide). No match → silently skip, never guess.
 - Marking `status: 'completed'` without an explicit `completedAt`/`submittedDate` auto-stamps both to "now" if not already set (`app/api/compliance/[id]/route.ts`).
-- A compliance status change pushes to Jira (`pushStatusToJira`) fire-and-forget, only when `status` actually changed from the persisted value — a no-op status resend produces no Jira call.
 - **`ComplianceObligation.status` is never automatically changed by the alert engine.** A due date lapsing does *not* flip `status` to `overdue` automatically — that field only changes via an explicit `PATCH` from the Compliance UI. The "overdue" *Alert*/*notification* and the obligation's own `status` field are two independent things.
 
 ## 2. Licenses

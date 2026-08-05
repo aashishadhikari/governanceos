@@ -195,14 +195,18 @@ export async function POST(req: NextRequest) {
     // Record the user creation in the audit trail.
     // recordId identifies the newly created user.
     // The authenticated administrator is captured automatically.
+    // passwordHash is stripped before this ever reaches the audit log or the
+    // response body — it must never leave the server, logged or not.
+    const { passwordHash: _omitPasswordHash, ...userSafe } = user;
+
     await writeRequestAuditLog(req, {
       action: 'CREATE',
       tableName: 'users',
       recordId: user.id,
-      newValues: user,
+      newValues: userSafe,
     });
 
-    return NextResponse.json(user, { status: 201 });
+    return NextResponse.json(userSafe, { status: 201 });
   } catch (err) {
     console.error('[POST /api/users]', err);
     return NextResponse.json(
